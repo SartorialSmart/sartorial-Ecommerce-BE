@@ -45,8 +45,33 @@ def test_order_paid_emails_customer_and_alerts_ops() -> None:
     ).exists()
     # Store ops get a Telegram alert (TELEGRAM_DEFAULT_CHAT_ID = "ops-chat" in test settings).
     assert any(chat == "ops-chat" for chat, _text, _token in MemoryTelegramBackend.outbox)
-    # An internal-only order ships immediately → shipment update email too.
-    assert Notification.objects.filter(event="shipment_update", channel=Channel.EMAIL).exists()
+    # The "shipped" email must NOT go out on payment — only when an admin ships.
+    assert not Notification.objects.filter(event="shipment_update", channel=Channel.EMAIL).exists()
+
+
+def test_shipped_email_only_after_admin_marks_shipped() -> None:
+    from apps.fulfillment import services as fulfillment_services
+    from apps.orders.models import OrderStatus
+
+    owner = UserFactory(email="ship@example.com", password="x")
+    cart = cart_services.get_or_create_cart(user=owner)
+    cart_services.add_item(cart, variant_id=str(make_variant("20.00").id), quantity=1)
+    cart_services.set_shipping(cart, {"name": "O", "line1": "1", "city": "T", "country": "US"})
+    order = order_services.checkout(cart, idempotency_key="notif-ship", currency="USD")
+    payment_services.confirm_mock_payment(order.payments.first())
+
+    # Paid but not shipped: no shipped email, order sits in "processing" (routing).
+    assert not Notification.objects.filter(event="shipment_update").exists()
+    order.refresh_from_db()
+    assert order.status == OrderStatus.ROUTING
+
+    # Admin ships → shipped email goes out and the order reconciles to fulfilled.
+    fulfillment_services.mark_shipped(order, tracking_number="TRK1", carrier="DHL")
+    assert Notification.objects.filter(
+        event="shipment_update", channel=Channel.EMAIL, recipient="ship@example.com"
+    ).exists()
+    order.refresh_from_db()
+    assert order.status == OrderStatus.FULFILLED
 
 
 def test_payer_also_notified_for_pay_for_a_friend() -> None:

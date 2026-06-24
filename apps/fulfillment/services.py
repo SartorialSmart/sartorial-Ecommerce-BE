@@ -52,13 +52,19 @@ def route_order(order: Order) -> Order:
 
 
 def _ship_internal(order: Order, lines: list) -> None:
+    """Allocate internal lines into a PENDING shipment and commit their stock.
+
+    The shipment is created PENDING (not shipped) — a human ships it later via
+    :func:`mark_shipped`, which is what notifies the customer. Stock is consumed
+    now: a paid order must permanently hold its units (reservations expire on a
+    TTL), so we remove them from on-hand at payment, independent of ship status.
+    """
     warehouse = inventory_services.get_default_warehouse()
     shipment = Shipment.objects.create(
         order=order,
         kind=Shipment.Kind.INTERNAL,
-        status=Shipment.Status.SHIPPED,
+        status=Shipment.Status.PENDING,
         warehouse=warehouse,
-        tracking_number=f"INT{order.number[-6:]}",
         carrier="Internal",
     )
     for ln in lines:
@@ -66,9 +72,34 @@ def _ship_internal(order: Order, lines: list) -> None:
         # Consume the reserved stock for this line (permanently removes it).
         inventory_services.consume(_line_ref(order, ln.id))
 
+
+@transaction.atomic
+def mark_shipped(order: Order, *, tracking_number: str = "", carrier: str = "") -> Order:
+    """Admin action: mark the order's pending shipments as shipped.
+
+    Flips every not-yet-shipped (and not cancelled) shipment to SHIPPED, attaches
+    optional tracking/carrier, sends the 'order shipped' notification (idempotent
+    per shipment), then reconciles the order status up to partially/fulfilled.
+    This is the *only* place an internal order notifies the customer it shipped.
+    """
     from apps.notifications.notify import on_shipment_shipped
 
-    on_shipment_shipped(order, shipment)
+    terminal = [Shipment.Status.SHIPPED, Shipment.Status.DELIVERED, Shipment.Status.CANCELLED]
+    pending = list(order.shipments.exclude(status__in=terminal))
+    for shipment in pending:
+        shipment.status = Shipment.Status.SHIPPED
+        fields = ["status", "updated_at"]
+        if tracking_number:
+            shipment.tracking_number = tracking_number
+            fields.append("tracking_number")
+        if carrier:
+            shipment.carrier = carrier
+            fields.append("carrier")
+        shipment.save(update_fields=fields)
+        on_shipment_shipped(order, shipment)
+
+    reconcile(order)
+    return order
 
 
 def _place_dropship(order: Order, supplier: Supplier, lines: list) -> None:

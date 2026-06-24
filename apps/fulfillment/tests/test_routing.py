@@ -60,9 +60,10 @@ def test_mixed_order_routes_internal_and_dropship(setup) -> None:
     supplier = Supplier.objects.create(name="Acme", code="acme", adapter="mock")
     order, internal, dropship = _paid_mixed_order(supplier)
 
-    # Internal shipment shipped immediately + stock decremented (10 - 2 = 8).
+    # Internal shipment is PENDING (awaiting an admin to ship) but stock is
+    # already committed (10 - 2 = 8).
     internal_shipment = order.shipments.get(kind=Shipment.Kind.INTERNAL)
-    assert internal_shipment.status == Shipment.Status.SHIPPED
+    assert internal_shipment.status == Shipment.Status.PENDING
     assert available_quantity(internal) == 8
 
     # Dropship: supplier order placed, shipment pending.
@@ -72,28 +73,34 @@ def test_mixed_order_routes_internal_and_dropship(setup) -> None:
     assert sup_order.supplier_id == supplier.id
     assert sup_order.external_ref
 
-    # With one line shipped and one pending, the order is partially fulfilled.
-    assert order.status == OrderStatus.PARTIALLY_FULFILLED
+    # Nothing has shipped yet → order is "processing" (routing), not fulfilled.
+    assert order.status == OrderStatus.ROUTING
 
 
 @pytest.mark.django_db
-def test_polling_reconciles_to_fulfilled(setup) -> None:
+def test_polling_then_admin_ship_reconciles_to_fulfilled(setup) -> None:
     supplier = Supplier.objects.create(name="Acme", code="acme", adapter="mock")
     order, _, _ = _paid_mixed_order(supplier)
-    assert order.status == OrderStatus.PARTIALLY_FULFILLED
+    assert order.status == OrderStatus.ROUTING
 
-    # Poll the supplier → mock reports shipped → reconcile to fulfilled.
+    # Poll the supplier → dropship ships; the internal half is still pending,
+    # so the order is only partially fulfilled.
     updated = fulfillment_services.poll_supplier_orders()
     assert updated == 1
     order.refresh_from_db()
-    assert order.status == OrderStatus.FULFILLED
+    assert order.status == OrderStatus.PARTIALLY_FULFILLED
     dropship_shipment = order.shipments.get(kind=Shipment.Kind.DROPSHIP)
     assert dropship_shipment.status == Shipment.Status.SHIPPED
     assert dropship_shipment.tracking_number
 
+    # Admin ships the internal half → fully fulfilled.
+    fulfillment_services.mark_shipped(order)
+    order.refresh_from_db()
+    assert order.status == OrderStatus.FULFILLED
+
 
 @pytest.mark.django_db
-def test_all_internal_order_fulfilled_on_routing(setup) -> None:
+def test_internal_order_processing_until_admin_ships(setup) -> None:
     v = _internal_variant(stock=5)
     cart = cart_services.get_or_create_cart(session_key="int")
     cart_services.add_item(cart, variant_id=str(v.id), quantity=1)
@@ -101,6 +108,16 @@ def test_all_internal_order_fulfilled_on_routing(setup) -> None:
     order = order_services.checkout(cart, idempotency_key="int-1", currency="USD")
     payment_services.confirm_mock_payment(order.payments.first())
     order.refresh_from_db()
-    # No dropship lines → fully shipped on routing.
-    assert order.status == OrderStatus.FULFILLED
+
+    # Paid: stock committed (5 - 1 = 4), but order is processing, not fulfilled.
+    assert order.status == OrderStatus.ROUTING
     assert available_quantity(v) == 4
+    assert order.shipments.get().status == Shipment.Status.PENDING
+
+    # Admin marks it shipped → fulfilled, with tracking attached.
+    fulfillment_services.mark_shipped(order, tracking_number="TRK9", carrier="GIG")
+    order.refresh_from_db()
+    assert order.status == OrderStatus.FULFILLED
+    shipment = order.shipments.get()
+    assert shipment.status == Shipment.Status.SHIPPED
+    assert shipment.tracking_number == "TRK9"

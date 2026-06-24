@@ -71,9 +71,10 @@ def test_mock_payment_drives_order_to_paid(setup) -> None:
     order.refresh_from_db()
     payment.refresh_from_db()
     # Payment succeeds and the order is marked paid; an internal-only order then
-    # auto-routes and ships, so the terminal status here is FULFILLED.
+    # auto-routes into a PENDING shipment and rests in "processing" (ROUTING)
+    # until an admin marks it shipped.
     assert order.paid_at is not None
-    assert order.status == OrderStatus.FULFILLED
+    assert order.status == OrderStatus.ROUTING
     assert payment.status == Payment.Status.SUCCEEDED
 
 
