@@ -99,6 +99,31 @@ def _hex_color(value: Any) -> None:
         raise ValidationError("Must be a hex colour like #6E0D25.")
 
 
+def _social_links(value: Any) -> None:
+    import re
+
+    if not isinstance(value, list):
+        raise ValidationError("Social links must be a list.")
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValidationError("Each social link must be an object with name/url/icon.")
+        name = str(item.get("name", "")).strip()
+        url = str(item.get("url", "")).strip()
+        if not name:
+            raise ValidationError("Each social link needs a name.")
+        if not re.match(r"^https?://", url):
+            raise ValidationError(f"'{name}' needs a URL starting with http:// or https://.")
+
+
+DEFAULT_SOCIAL_LINKS = [
+    {"name": "Instagram", "url": "https://instagram.com", "icon": "instagram"},
+    {"name": "Facebook", "url": "https://facebook.com", "icon": "facebook"},
+    {"name": "TikTok", "url": "https://tiktok.com", "icon": "tiktok"},
+    {"name": "YouTube", "url": "https://youtube.com", "icon": "youtube"},
+    {"name": "Pinterest", "url": "https://pinterest.com", "icon": "pinterest"},
+]
+
+
 # --- the registry -----------------------------------------------------------
 SETTINGS: dict[str, SettingSpec] = {
     spec.key: spec
@@ -245,6 +270,15 @@ SETTINGS: dict[str, SettingSpec] = {
             BOOLEAN,
             False,
             "Hide out-of-stock products from the storefront instead of showing them.",
+        ),
+        # Footer
+        SettingSpec(
+            "footer.social_links",
+            "footer",
+            JSON,
+            DEFAULT_SOCIAL_LINKS,
+            "Footer social links: a list of {name, url, icon}.",
+            _social_links,
         ),
         # Content blocks
         SettingSpec(
@@ -399,6 +433,7 @@ PUBLIC_KEYS: frozenset[str] = frozenset(
         "features.guest_payers",
         "features.guest_checkout",
         "catalog.hide_out_of_stock",
+        "footer.social_links",
         "content.announcement",
         "hero.badge",
         "hero.headline",

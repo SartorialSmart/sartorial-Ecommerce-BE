@@ -67,3 +67,30 @@ def test_set_many_is_atomic() -> None:
         services.set_many({"store.name": "Ok", "currency.base": "XX"})
     # The valid key must not have been written because validation failed first.
     assert not Setting.objects.filter(key="store.name").exists()
+
+
+@pytest.mark.django_db
+def test_social_links_validation_and_public_exposure() -> None:
+    from apps.storeconfig.schema import PUBLIC_KEYS
+
+    # Exposed to the storefront.
+    assert "footer.social_links" in PUBLIC_KEYS
+
+    # Valid list is accepted and persisted.
+    services.set_setting(
+        "footer.social_links",
+        [{"name": "Instagram", "url": "https://instagram.com/me", "icon": "instagram"}],
+    )
+    links = selectors.get_setting("footer.social_links")
+    assert links[0]["name"] == "Instagram"
+
+    # A bad URL is rejected.
+    with pytest.raises(ValidationError):
+        services.set_setting(
+            "footer.social_links", [{"name": "X", "url": "not-a-url", "icon": "x"}]
+        )
+    # A missing name is rejected.
+    with pytest.raises(ValidationError):
+        services.set_setting(
+            "footer.social_links", [{"name": "", "url": "https://x.com", "icon": "x"}]
+        )
