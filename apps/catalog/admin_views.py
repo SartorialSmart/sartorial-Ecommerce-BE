@@ -69,7 +69,7 @@ class OptionValueAdminViewSet(_AdminModelViewSet):
 
 
 class VariantAdminViewSet(_AdminModelViewSet):
-    queryset = Variant.objects.all()
+    queryset = Variant.objects.all().prefetch_related("variant_options__option_value__option_type")
     serializer_class = VariantAdminSerializer
     filterset_fields = ["product"]
 

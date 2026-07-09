@@ -161,6 +161,8 @@ class VariantAdminSerializer(serializers.ModelSerializer):
     option_value_ids = serializers.ListField(
         child=serializers.IntegerField(), required=False, write_only=True
     )
+    # Read-only: the variant's option values (e.g. Size: M, Color: Red).
+    options = serializers.SerializerMethodField()
 
     class Meta:
         model = Variant
@@ -179,8 +181,26 @@ class VariantAdminSerializer(serializers.ModelSerializer):
             "fulfillment_type",
             "options_key",
             "option_value_ids",
+            "options",
         )
-        read_only_fields = ("options_key", "is_default")
+        read_only_fields = ("options_key", "is_default", "options")
+
+    def get_options(self, obj: Variant) -> list[dict]:
+        """Per-variant option values, ordered by option-type position."""
+        rows = [
+            {
+                "type_id": vo.option_value.option_type_id,
+                "type": vo.option_value.option_type.name,
+                "value_id": vo.option_value_id,
+                "value": vo.option_value.value,
+                "position": vo.option_value.option_type.position,
+            }
+            for vo in obj.variant_options.all()
+        ]
+        rows.sort(key=lambda r: (r["position"], r["type"]))
+        for r in rows:
+            r.pop("position", None)
+        return rows
         extra_kwargs = {
             "moq": {"required": False},
             "price_tiers": {"required": False},
