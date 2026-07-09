@@ -100,6 +100,29 @@ def test_polling_then_admin_ship_reconciles_to_fulfilled(setup) -> None:
 
 
 @pytest.mark.django_db
+def test_unpaid_order_is_never_routed_or_consumed(setup) -> None:
+    """Inventory must only be subtracted after the paid webhook: routing an order
+    that is still PENDING is refused, and no stock is consumed."""
+    from apps.common.exceptions import ConflictError
+    from apps.inventory.models import StockItem
+
+    v = _internal_variant(stock=5)
+    cart = cart_services.get_or_create_cart(session_key="unpaid")
+    cart_services.add_item(cart, variant_id=str(v.id), quantity=2)
+    cart_services.set_shipping(cart, {"name": "A", "line1": "1 St", "city": "T", "country": "US"})
+    order = order_services.checkout(cart, idempotency_key="unpaid-1", currency="USD")
+    assert order.status == OrderStatus.PENDING  # not yet paid
+
+    on_hand_before = StockItem.objects.get(variant=v).on_hand
+    with pytest.raises(ConflictError):
+        fulfillment_services.route_order(order)
+
+    order.refresh_from_db()
+    assert order.status == OrderStatus.PENDING  # unchanged
+    assert StockItem.objects.get(variant=v).on_hand == on_hand_before  # nothing consumed
+
+
+@pytest.mark.django_db
 def test_internal_order_processing_until_admin_ships(setup) -> None:
     v = _internal_variant(stock=5)
     cart = cart_services.get_or_create_cart(session_key="int")

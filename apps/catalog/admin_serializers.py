@@ -184,6 +184,10 @@ class VariantAdminSerializer(serializers.ModelSerializer):
             "options",
         )
         read_only_fields = ("options_key", "is_default", "options")
+        extra_kwargs = {
+            "moq": {"required": False},
+            "price_tiers": {"required": False},
+        }
 
     def get_options(self, obj: Variant) -> list[dict]:
         """Per-variant option values, ordered by option-type position."""
@@ -201,10 +205,6 @@ class VariantAdminSerializer(serializers.ModelSerializer):
         for r in rows:
             r.pop("position", None)
         return rows
-        extra_kwargs = {
-            "moq": {"required": False},
-            "price_tiers": {"required": False},
-        }
 
     def validate_price_tiers(self, value: object) -> list:
         """Normalise to a clean, sorted list of {min_qty:int, price:str}."""

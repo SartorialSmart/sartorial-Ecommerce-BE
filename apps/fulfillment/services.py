@@ -13,6 +13,7 @@ from collections import defaultdict
 from django.db import transaction
 
 from apps.catalog.models import FulfillmentType
+from apps.common.exceptions import ConflictError
 from apps.inventory import services as inventory_services
 from apps.orders import services as order_services
 from apps.orders.models import Order, OrderStatus
@@ -26,9 +27,21 @@ def _line_ref(order: Order, order_line_id) -> str:
     return f"order:{order.id}:{order_line_id}"
 
 
+# Stock is only ever touched once an order has been paid. PAID is the fresh
+# entry point; ROUTING/PARTIALLY_FULFILLED allow an idempotent re-run after a
+# partial failure. Anything else (unpaid, cancelled, refunded) must never reach
+# ``consume`` — inventory is subtracted strictly *after* the paid webhook.
+_ROUTABLE = frozenset({OrderStatus.PAID, OrderStatus.ROUTING, OrderStatus.PARTIALLY_FULFILLED})
+
+
 @transaction.atomic
 def route_order(order: Order) -> Order:
     """Route a paid order's lines to internal/dropship fulfillment, then reconcile."""
+    if order.status not in _ROUTABLE:
+        raise ConflictError(
+            "Refusing to fulfil an order that hasn't been paid.",
+            code="order_not_paid",
+        )
     if order.status == OrderStatus.PAID:
         order_services.transition(order, OrderStatus.ROUTING)
 
