@@ -15,6 +15,7 @@ from typing import Any
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
+from django.db.models import ProtectedError, RestrictedError
 from django.http import Http404
 from rest_framework import exceptions, status
 from rest_framework.response import Response
@@ -61,6 +62,14 @@ def api_exception_handler(exc: Exception, context: dict[str, Any]) -> Response |
         exc = exceptions.PermissionDenied()
     elif isinstance(exc, DjangoValidationError):
         exc = exceptions.ValidationError(detail=getattr(exc, "message_dict", exc.messages))
+    elif isinstance(exc, (ProtectedError, RestrictedError)):
+        # A delete blocked by a protected/restricted relation — ProtectedError is
+        # itself an IntegrityError, so this must be checked *before* the generic
+        # branch to avoid the misleading "duplicate value" message.
+        exc = ConflictError(
+            "This can’t be deleted because other records still depend on it.",
+            code="protected",
+        )
     elif isinstance(exc, IntegrityError):
         # DB unique/constraint violations (e.g. duplicate SKU) → clean 409
         # instead of a 500, without leaking DB internals to the client.

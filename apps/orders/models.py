@@ -104,7 +104,15 @@ class Order(BaseModel):
 
 class OrderLine(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="lines")
-    variant = models.ForeignKey(Variant, on_delete=models.PROTECT, related_name="order_lines")
+    # SET_NULL (not PROTECT) so a product/variant can be deleted without losing
+    # order history — every detail is snapshotted on the fields below.
+    variant = models.ForeignKey(
+        Variant,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="order_lines",
+    )
     # Snapshots so the order is stable even if the catalog changes later.
     sku = models.CharField(max_length=64)
     title = models.CharField(max_length=255)
