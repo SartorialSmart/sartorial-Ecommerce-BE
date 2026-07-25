@@ -6,6 +6,10 @@ from .models import Order, OrderLine
 
 
 class OrderLineSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    variant_options = serializers.SerializerMethodField()
+    product_deleted = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderLine
         fields = (
@@ -18,7 +22,45 @@ class OrderLineSerializer(serializers.ModelSerializer):
             "unit_price_charged",
             "line_total_charged",
             "fulfillment_type",
+            "image",
+            "variant_options",
+            "product_deleted",
         )
+
+    def get_image(self, obj: OrderLine) -> str | None:
+        """A thumbnail for the purchased item.
+
+        Prefers a variant-specific image, then the product's primary/first image.
+        Returns None when the variant/product was deleted after purchase (the
+        snapshotted title/sku/prices still describe what was bought)."""
+        from apps.catalog.images import image_urls
+
+        variant = obj.variant
+        if variant is None:
+            return None
+        images = list(variant.product.images.all())
+        chosen = (
+            next((i for i in images if i.variant_id == variant.id and i.is_primary), None)
+            or next((i for i in images if i.variant_id == variant.id), None)
+            or next((i for i in images if i.variant_id is None and i.is_primary), None)
+            or next((i for i in images if i.variant_id is None), None)
+            or (images[0] if images else None)
+        )
+        return image_urls(chosen.public_id)["thumb"] if chosen else None
+
+    def get_variant_options(self, obj: OrderLine) -> str:
+        """Human label of the bought combination, e.g. 'Size: M · Color: Red'."""
+        variant = obj.variant
+        if variant is None:
+            return ""
+        parts = [
+            f"{vo.option_value.option_type.name}: {vo.option_value.value}"
+            for vo in variant.variant_options.all()
+        ]
+        return " · ".join(parts)
+
+    def get_product_deleted(self, obj: OrderLine) -> bool:
+        return obj.variant_id is None
 
 
 class OrderSerializer(serializers.ModelSerializer):

@@ -220,6 +220,11 @@ class OrderHistoryView(APIView):
             )
             .distinct()
             .order_by("-created_at")
+            .prefetch_related(
+                "lines__variant__product__images",
+                "lines__variant__variant_options__option_value__option_type",
+                "shipments",
+            )
         )
         return Response(OrderSerializer(orders, many=True).data)
 

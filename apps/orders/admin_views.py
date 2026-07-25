@@ -59,7 +59,11 @@ class OrderInquiryAdminViewSet(
 
 class OrderAdminViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAdminRole]
-    queryset = Order.objects.all().prefetch_related("lines")
+    queryset = Order.objects.all().prefetch_related(
+        "lines__variant__product__images",
+        "lines__variant__variant_options__option_value__option_type",
+        "shipments",
+    )
     serializer_class = OrderSerializer
     lookup_field = "number"
     filterset_fields = ["status", "currency"]
