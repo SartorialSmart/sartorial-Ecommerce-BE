@@ -128,10 +128,26 @@ Vercel detects Django from `manage.py`, installs from `pyproject.toml` +
 
 ## 4. Scheduled jobs
 
-`vercel.json` declares two cron schedules against `/api/v1/cron/run/`, which
-calls the same functions Celery Beat would have. Vercel authenticates itself
-with `Authorization: Bearer $CRON_SECRET`; the endpoint returns 503 when
-`CRON_SECRET` is unset rather than exposing the jobs publicly.
+`/api/v1/cron/run/` calls the same functions Celery Beat would have. Callers
+authenticate with `Authorization: Bearer $CRON_SECRET`; the endpoint returns 503
+when `CRON_SECRET` is unset rather than exposing the jobs publicly.
+
+Two schedulers drive it, because neither alone is sufficient on the Hobby plan:
+
+- **`vercel.json`** — one daily run of all four jobs. The Hobby plan rejects any
+  cron more frequent than daily at deploy time (`*/5 * * * *` fails the build),
+  so this is the most Vercel can do without Pro. It's the backstop.
+- **`.github/workflows/cron.yml`** — every 15 minutes for the time-sensitive
+  jobs, hourly for the rest. This is what actually keeps the cadence.
+
+Daily alone is not enough: stock reservations have a 30-minute TTL, so abandoned
+carts would hold inventory for up to a day. If you move to Vercel Pro, restore
+the frequent schedules in `vercel.json` and delete the workflow.
+
+The workflow needs two repository secrets (Settings → Secrets → Actions):
+`API_BASE_URL` (e.g. `https://nasuru-api.vercel.app`, no trailing slash) and
+`CRON_SECRET` (matching the Vercel value). It can also be run on demand from the
+Actions tab via **Run workflow**, optionally naming specific jobs.
 
 Verify manually:
 
@@ -145,10 +161,9 @@ Jobs: `release-expired-reservations`, `poll-supplier-orders`,
 means at least one job failed — the body reports which, and the traceback is in
 the function log.
 
-> **Hobby plan:** cron is limited to two jobs running at most once per day, so
-> the `*/5 * * * *` schedule in `vercel.json` will not be honoured. Either move
-> to Pro, or drive the endpoint from an external scheduler (GitHub Actions,
-> cron-job.org) using the same bearer token.
+A 207 means at least one job failed — the body reports which, and the traceback
+is in the function log. The GitHub workflow fails the run on anything but 200,
+so partial failures are visible rather than silent.
 
 ---
 

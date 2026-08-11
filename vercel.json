@@ -8,12 +8,8 @@
   },
   "crons": [
     {
-      "path": "/api/v1/cron/run/?jobs=release-expired-reservations,poll-supplier-orders",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/v1/cron/run/?jobs=refresh-exchange-rates,sync-suppliers",
-      "schedule": "0 * * * *"
+      "path": "/api/v1/cron/run/",
+      "schedule": "0 3 * * *"
     }
   ]
 }

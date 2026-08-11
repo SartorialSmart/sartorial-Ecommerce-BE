@@ -1,0 +1,72 @@
+name: Scheduled jobs
+
+# Drives the jobs Celery Beat would run on a VM. Vercel Cron covers this too,
+# but the Hobby plan allows only one run per day — too slow for inventory
+# reservations, whose TTL is 30 minutes. This workflow keeps the real cadence.
+#
+# Setup: add two repository secrets (Settings -> Secrets -> Actions):
+#   API_BASE_URL  e.g. https://nasuru-api.vercel.app   (no trailing slash)
+#   CRON_SECRET   the same value set in the Vercel project
+#
+# Note: GitHub's scheduler has a 5-minute minimum, runs on a best-effort basis
+# (delays under load are normal), and disables scheduled workflows after 60 days
+# with no repository activity. The daily Vercel cron is the backstop for that.
+
+on:
+  schedule:
+    # Time-sensitive jobs: free expired stock reservations, reconcile supplier
+    # orders. Every 15 minutes keeps stock held for well under an hour.
+    - cron: "*/15 * * * *"
+    # FX rates + supplier catalogue sync, hourly.
+    - cron: "17 * * * *"
+  # Allows running any job on demand from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: "Comma-separated job names (blank = all)"
+        required: false
+        default: ""
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Select jobs for this schedule
+        id: pick
+        run: |
+          if [ -n "${{ github.event.inputs.jobs }}" ]; then
+            echo "jobs=${{ github.event.inputs.jobs }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "17 * * * *" ]; then
+            echo "jobs=refresh-exchange-rates,sync-suppliers" >> "$GITHUB_OUTPUT"
+          else
+            echo "jobs=release-expired-reservations,poll-supplier-orders" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger scheduled jobs
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          JOBS: ${{ steps.pick.outputs.jobs }}
+        run: |
+          set -euo pipefail
+          if [ -z "${API_BASE_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::API_BASE_URL and CRON_SECRET repository secrets must be set."
+            exit 1
+          fi
+
+          # Split body from status code so a failure still shows which job broke.
+          response=$(curl --silent --show-error --max-time 120 \
+            --write-out "\n%{http_code}" \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "${API_BASE_URL}/api/v1/cron/run/?jobs=${JOBS}")
+          status=$(printf '%s' "$response" | tail -n1)
+          body=$(printf '%s' "$response" | sed '$d')
+
+          echo "HTTP $status"
+          echo "$body"
+
+          # 207 means at least one job failed; the body names it.
+          if [ "$status" != "200" ]; then
+            echo "::error::Scheduled jobs returned HTTP $status"
+            exit 1
+          fi
