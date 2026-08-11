@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.conf import settings
 from django.core.cache import cache
 
 from .models import Setting
@@ -37,7 +38,10 @@ def get_all_settings() -> dict[str, Any]:
     if cached is _SENTINEL:
         cached = _load_all()
         try:
-            cache.set(_CACHE_KEY, cached, timeout=None)
+            # TTL is None with a shared cache (invalidated explicitly on write)
+            # and a short bound without one, where per-process caches can't be
+            # invalidated across instances. See CACHE_SETTINGS_TIMEOUT.
+            cache.set(_CACHE_KEY, cached, timeout=settings.CACHE_SETTINGS_TIMEOUT)
         except Exception:  # noqa: BLE001
             pass
     return dict(cached)

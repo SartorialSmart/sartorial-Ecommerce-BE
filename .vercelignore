@@ -1,0 +1,29 @@
+# Keep the function bundle small — it has a 500MB limit and everything here is
+# either build-irrelevant or belongs to the VM/Docker deploy path.
+
+.git
+.github
+.venv
+venv
+
+# VM deployment assets (systemd units, nginx, deploy script) — unused on Vercel.
+deploy
+Dockerfile
+.dockerignore
+Makefile
+
+# Tests and fixtures never run in the deployed function.
+conftest.py
+**/tests
+**/test_*.py
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Local-only artefacts.
+**/__pycache__
+*.py[cod]
+*.sqlite3
+.env
+.env.*
+staticfiles

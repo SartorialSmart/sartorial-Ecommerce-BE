@@ -165,7 +165,11 @@ def _free(reservation: Reservation) -> None:
 def release_expired() -> int:
     """Release reservations whose TTL has elapsed. Called by a periodic task."""
     now = timezone.now()
-    expired = Reservation.objects.select_for_update().filter(
+    # Read-only scan for the affected references — no locking here. Postgres
+    # rejects FOR UPDATE alongside DISTINCT, and a lock taken on this query
+    # would be pointless anyway: `release()` is atomic and re-selects each
+    # reference's rows FOR UPDATE before mutating them.
+    expired = Reservation.objects.filter(
         status=Reservation.Status.ACTIVE, expires_at__isnull=False, expires_at__lte=now
     )
     refs = list(expired.values_list("reference", flat=True).distinct())

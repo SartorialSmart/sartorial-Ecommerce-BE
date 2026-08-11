@@ -115,8 +115,61 @@ TEMPLATES = [
 ]
 
 # --- Database ---------------------------------------------------------------
-# Postgres is the real backend. USE_SQLITE=1 swaps in SQLite for quick local
-# runs / sanity checks that don't need a Postgres server (never in prod).
+# Postgres is the real backend. Resolution order:
+#   1. DATABASE_URL (managed providers — Neon, Supabase, RDS, …)
+#   2. discrete POSTGRES_* vars (docker-compose / VM deploys)
+#   3. SQLite when USE_SQLITE=1 (quick local runs with no services)
+#
+# USE_SQLITE wins outright so `make run` on a laptop never accidentally points
+# at a production URL that happens to be exported in the shell.
+
+# Connection lifetime. Serverless (Vercel) reuses a warm instance for a while,
+# but a pooled Neon connection held across idle periods gets reaped server-side
+# and resurfaces as "connection already closed" on the next request. 0 = open
+# and close per request, which is the safe default behind a connection pooler.
+DB_CONN_MAX_AGE = int(env("DB_CONN_MAX_AGE", "0") or "0")
+# Never let a cold DB hang until the function times out.
+DB_CONNECT_TIMEOUT = int(env("DB_CONNECT_TIMEOUT", "10") or "10")
+
+
+def _database_from_url(url: str) -> dict[str, Any]:
+    """Build a Django DATABASES entry from a postgres:// URL.
+
+    Query-string parameters (``sslmode``, ``channel_binding``, …) are forwarded
+    to psycopg as connection options — Neon requires both, and dropping them
+    turns into a TLS handshake failure at runtime rather than at deploy time.
+    """
+    from urllib.parse import parse_qsl, unquote, urlparse
+
+    parsed = urlparse(url)
+    options: dict[str, Any] = {
+        key: value for key, value in parse_qsl(parsed.query) if value not in ("", None)
+    }
+    # Postgres-side statement timeout, so a pathological query can't pin a
+    # serverless instance open for its whole duration budget.
+    statement_timeout_ms = env("DB_STATEMENT_TIMEOUT_MS", "")
+    if statement_timeout_ms:
+        options["options"] = f"-c statement_timeout={statement_timeout_ms}"
+    options.setdefault("connect_timeout", DB_CONNECT_TIMEOUT)
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": unquote(parsed.path.lstrip("/")) or "postgres",
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or "5432"),
+        "CONN_MAX_AGE": DB_CONN_MAX_AGE,
+        "OPTIONS": options,
+        # PgBouncer in transaction-pooling mode (Neon's `-pooler` host) cannot
+        # hold a server-side cursor open across statements. Django's default
+        # chunked iteration would break on `.iterator()` calls.
+        "DISABLE_SERVER_SIDE_CURSORS": True,
+    }
+
+
+DATABASE_URL = env("DATABASE_URL", "")
+
 if env_bool("USE_SQLITE", False):
     DATABASES = {
         "default": {
@@ -124,6 +177,8 @@ if env_bool("USE_SQLITE", False):
             "NAME": env("SQLITE_PATH", str(BASE_DIR / "db.sqlite3")),
         }
     }
+elif DATABASE_URL:
+    DATABASES = {"default": _database_from_url(DATABASE_URL)}
 else:
     DATABASES = {
         "default": {
@@ -133,6 +188,8 @@ else:
             "PASSWORD": env("POSTGRES_PASSWORD", "idealcommerce"),
             "HOST": env("POSTGRES_HOST", "localhost"),
             "PORT": env("POSTGRES_PORT", "5432"),
+            "CONN_MAX_AGE": DB_CONN_MAX_AGE,
+            "OPTIONS": {"connect_timeout": DB_CONNECT_TIMEOUT},
         }
     }
 
@@ -152,7 +209,12 @@ USE_I18N = True
 USE_TZ = True
 
 # --- Static / media ---------------------------------------------------------
-STATIC_URL = "static/"
+# Absolute, not "static/": Vercel reads STATIC_URL to decide where to mount the
+# collected files on its CDN, and a relative value is ambiguous there even
+# though Django itself would normalise it.
+STATIC_URL = "/static/"
+# Vercel runs collectstatic automatically during the build because STATIC_ROOT
+# is set, then serves the result from the CDN.
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -201,10 +263,29 @@ SIMPLE_JWT = {
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:3000")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@idealcommerce.test")
 
+# --- Redis ------------------------------------------------------------------
+# Redis is optional. On a VM deploy it backs the cache and the Celery broker;
+# on serverless (Vercel) there is no Redis and no worker process, so an unset
+# REDIS_URL degrades the app to local-memory caching and inline task execution
+# instead of failing every request that touches either.
+REDIS_URL = env("REDIS_URL", "")
+
 # --- Celery -----------------------------------------------------------------
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", env("REDIS_URL", "redis://localhost:6379/0"))
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", env("REDIS_URL", "redis://localhost:6379/0"))
-CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", REDIS_URL)
+# With no broker there is nothing to enqueue onto, so tasks must run inline in
+# the calling process. This is forced rather than defaulted: CELERY_TASK_ALWAYS_
+# EAGER=false with an empty broker is a misconfiguration (it makes every
+# .delay() hang against a nonexistent broker and fail the request that
+# triggered it), so the broker's absence wins over the flag.
+if CELERY_BROKER_URL:
+    CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_TASK_ALWAYS_EAGER", False)
+else:
+    CELERY_TASK_ALWAYS_EAGER = True
+# Eager tasks must not propagate failures into the caller: a Cloudinary cleanup
+# or a notification send that errors should be logged, not turned into a 500 on
+# the checkout that triggered it.
+CELERY_TASK_EAGER_PROPAGATES = False
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -233,35 +314,129 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # --- Cache ------------------------------------------------------------------
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env("REDIS_URL", "redis://localhost:6379/1"),
-        # Fail fast if Redis is unreachable so callers can fall back to the DB
-        # (selectors swallow cache errors) instead of blocking on retries.
-        "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1},
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            # Fail fast if Redis is unreachable so callers can fall back to the DB
+            # (selectors swallow cache errors) instead of blocking on retries.
+            "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1},
+        }
     }
+else:
+    # No shared cache available. Local memory is per-process, which on
+    # serverless means per-instance: a write on one instance cannot invalidate
+    # another's copy. Cached entries therefore MUST carry a bounded TTL — see
+    # CACHE_SETTINGS_TIMEOUT below — so stale data self-heals in seconds.
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "idealcommerce-local",
+        }
+    }
+
+# How long the store-settings map is cached, in seconds. Explicit invalidation
+# on write is reliable only with a shared cache; without one, this TTL is what
+# bounds how long an admin change can take to show up on every instance.
+# With Redis the default is None (cache until invalidated); without it, 30s.
+_settings_ttl = env("CACHE_SETTINGS_TIMEOUT")
+if _settings_ttl:
+    CACHE_SETTINGS_TIMEOUT: int | None = int(_settings_ttl)
+elif REDIS_URL:
+    CACHE_SETTINGS_TIMEOUT = None
+else:
+    CACHE_SETTINGS_TIMEOUT = 30
+
+# --- Scheduled jobs ----------------------------------------------------------
+# Shared secret guarding the HTTP cron entry point (apps/common/cron.py), used
+# where there's no Celery Beat process. Vercel injects this into cron requests
+# as an `Authorization: Bearer` header when set on the project. Empty disables
+# the endpoint outright.
+CRON_SECRET = env("CRON_SECRET", "")
+
+# --- Logging ----------------------------------------------------------------
+# Everything goes to stdout/stderr — the only log sink a serverless platform
+# collects, and the right one for systemd/journald or `docker logs` too. Never
+# log to a file: the filesystem is read-only on Vercel outside /tmp.
+LOG_LEVEL = env("LOG_LEVEL", "INFO") or "INFO"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        # Unhandled exceptions in views. Without this, DEBUG=False swallows the
+        # traceback and you get a bare 500 with no way to diagnose it.
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": env("DB_LOG_LEVEL", "WARNING"),
+            "propagate": False,
+        },
+        "apps": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+    },
 }
+
 
 # --- Cloudinary -------------------------------------------------------------
 # Either CLOUDINARY_URL or the discrete cloud-name/key/secret trio.
+# CLOUDINARY_URL packs all three credentials into one string, which is what the
+# Cloudinary dashboard shows you and the more common way to configure a
+# deployment. Parse it into the discrete values so both styles work and the rest
+# of the codebase only has to read the trio. The discrete vars win if both are
+# set, so a single override doesn't require rebuilding the whole URL.
+def _cloudinary_from_url(url: str) -> tuple[str | None, str | None, str | None]:
+    """Split ``cloudinary://<api_key>:<api_secret>@<cloud_name>`` into its parts."""
+    from urllib.parse import unquote, urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme != "cloudinary":
+        return None, None, None
+    return (
+        parsed.hostname or None,
+        unquote(parsed.username) if parsed.username else None,
+        unquote(parsed.password) if parsed.password else None,
+    )
+
+
+_cl_cloud, _cl_key, _cl_secret = _cloudinary_from_url(env("CLOUDINARY_URL", "") or "")
+
+CLOUDINARY_CLOUD_NAME = env("CLOUDINARY_CLOUD_NAME") or _cl_cloud
+CLOUDINARY_API_KEY = env("CLOUDINARY_API_KEY") or _cl_key
+CLOUDINARY_API_SECRET = env("CLOUDINARY_API_SECRET") or _cl_secret
+
 CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": env("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": env("CLOUDINARY_API_KEY"),
-    "API_SECRET": env("CLOUDINARY_API_SECRET"),
+    "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+    "API_KEY": CLOUDINARY_API_KEY,
+    "API_SECRET": CLOUDINARY_API_SECRET,
 }
-CLOUDINARY_CLOUD_NAME = env("CLOUDINARY_CLOUD_NAME")
-CLOUDINARY_API_KEY = env("CLOUDINARY_API_KEY")
-CLOUDINARY_API_SECRET = env("CLOUDINARY_API_SECRET")
 CLOUDINARY_UPLOAD_FOLDER = env("CLOUDINARY_UPLOAD_FOLDER", "idealcommerce/products")
 
 # Pluggable product-image backend. "cloudinary" hits the real account; "static"
 # serves generated SVGs from the storefront's /public folder (key-less local dev
 # / demos); "mock" keeps tests off the network. Defaults to cloudinary when a
 # cloud name is configured, otherwise the static demo images.
+# Uses the resolved cloud name (so CLOUDINARY_URL counts too), not the raw env
+# var: configuring credentials should be enough to turn real uploads on.
 CATALOG_IMAGE_BACKEND = env(
     "CATALOG_IMAGE_BACKEND",
-    "cloudinary" if env("CLOUDINARY_CLOUD_NAME") else "static",
+    "cloudinary" if CLOUDINARY_CLOUD_NAME else "static",
 )
 # Origin the storefront serves generated product SVGs from. Empty = root-relative
 # (same origin as the storefront), which is what the demo uses.

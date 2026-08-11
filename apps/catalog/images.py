@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from typing import Any, BinaryIO
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 # Named delivery sizes. Each maps to Cloudinary transformation params.
 IMAGE_VARIANTS: dict[str, dict[str, Any]] = {
@@ -52,12 +53,25 @@ class CloudinaryBackend(BaseImageBackend):
     def __init__(self) -> None:
         import cloudinary  # local import so the dependency is optional in tests
 
-        cloudinary.config(
-            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
-            api_key=settings.CLOUDINARY_API_KEY,
-            api_secret=settings.CLOUDINARY_API_SECRET,
-            secure=True,
-        )
+        # Only pass credentials we actually have. Passing None overwrites
+        # whatever the SDK already picked up from a CLOUDINARY_URL environment
+        # variable, which would silently unconfigure the client and surface
+        # later as an opaque SDK error on the first upload.
+        config = {
+            "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
+            "api_key": settings.CLOUDINARY_API_KEY,
+            "api_secret": settings.CLOUDINARY_API_SECRET,
+        }
+        cloudinary.config(secure=True, **{k: v for k, v in config.items() if v})
+
+        missing = [name for name, value in config.items() if not value]
+        if missing and not cloudinary.config().cloud_name:
+            raise ImproperlyConfigured(
+                "CATALOG_IMAGE_BACKEND is 'cloudinary' but these credentials are "
+                f"missing: {', '.join(missing)}. Set CLOUDINARY_CLOUD_NAME / "
+                "CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET (or CLOUDINARY_URL), "
+                "or use CATALOG_IMAGE_BACKEND='static'."
+            )
         self._cloudinary = cloudinary
 
     def upload(

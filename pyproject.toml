@@ -43,6 +43,13 @@ dev = [
 # it as a wheel during `uv sync`.
 package = false
 
+[tool.vercel]
+# Vercel infers the entrypoint from Django settings, but this project defines
+# both WSGI_APPLICATION and ASGI_APPLICATION and Vercel prefers ASGI when both
+# are present. The app is entirely sync (no Channels, no async views), so pin
+# WSGI explicitly rather than have sync views run through an ASGI adapter.
+entrypoint = "config.wsgi:application"
+
 [tool.black]
 line-length = 100
 target-version = ["py312"]

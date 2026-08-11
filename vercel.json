@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["cle1"],
+  "functions": {
+    "config/wsgi.py": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/v1/cron/run/?jobs=release-expired-reservations,poll-supplier-orders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/v1/cron/run/?jobs=refresh-exchange-rates,sync-suppliers",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

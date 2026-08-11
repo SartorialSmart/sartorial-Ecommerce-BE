@@ -7,7 +7,13 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+# collectstatic output — STATIC_ROOT is <repo>/staticfiles. Vercel regenerates
+# this during its build, so it must never be committed.
+staticfiles/
 backend/staticfiles/
+
+# Vercel CLI local state (contains the linked project/org ids).
+.vercel/
 
 # Env
 .env
