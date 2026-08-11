@@ -11,6 +11,8 @@ settings module, so there is exactly one production code path to reason about.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from .base import *  # noqa: F401,F403
 from .base import ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS, SECRET_KEY, env, env_bool, env_list
 
@@ -56,6 +58,16 @@ ON_VERCEL = env_bool("VERCEL", False) or bool(env("VERCEL_URL"))
 # VERCEL_URL is this deployment's host; VERCEL_PROJECT_PRODUCTION_URL is the
 # stable production host. Both are injected by the platform.
 _vercel_hosts = [host for host in (env("VERCEL_URL"), env("VERCEL_PROJECT_PRODUCTION_URL")) if host]
+
+# A custom domain (api.example.com) is NOT discoverable from the platform
+# environment — Vercel only exposes its own *.vercel.app hostnames. Without
+# this, serving the API on a custom domain returns 400 to every request while
+# static assets keep working, which reads like a routing problem rather than a
+# host-allowlist one. API_PUBLIC_BASE_URL already has to be set for payment
+# webhooks, so treat it as authoritative for the API's own hostname too.
+_public_host = urlparse(env("API_PUBLIC_BASE_URL", "") or "").hostname
+if _public_host and _public_host not in {"localhost", "127.0.0.1"}:
+    _vercel_hosts.append(_public_host)
 
 if _vercel_hosts:
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *_vercel_hosts]))

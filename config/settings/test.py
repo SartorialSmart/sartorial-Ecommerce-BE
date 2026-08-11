@@ -31,6 +31,9 @@ SECRET_KEY = "test-secret-key-long-enough-for-hmac-sha256-signing-000000"
 
 # Never touch the real Cloudinary account from tests.
 CATALOG_IMAGE_BACKEND = "mock"
+# Pinned so the suite doesn't depend on whatever folder a developer happens to
+# have in their local .env — base.py loads it, and tests assert on this prefix.
+CLOUDINARY_UPLOAD_FOLDER = "idealcommerce/products"
 
 # In-memory notification channels — never hit ZeptoMail/Telegram from tests.
 NOTIFICATIONS_EMAIL_BACKEND = "memory"
