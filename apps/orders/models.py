@@ -16,6 +16,7 @@ from django.db import models
 
 from apps.catalog.models import Variant
 from apps.common.models import BaseModel
+from apps.tenants.models import TenantScopedModel
 
 
 def generate_order_number() -> str:
@@ -35,7 +36,7 @@ class OrderStatus(models.TextChoices):
     REFUNDED = "refunded", "Refunded"
 
 
-class Order(BaseModel):
+class Order(TenantScopedModel, BaseModel):
     number = models.CharField(
         max_length=20, unique=True, default=generate_order_number, editable=False
     )
@@ -130,7 +131,7 @@ class OrderLine(BaseModel):
         return f"{self.sku} x{self.quantity}"
 
 
-class OrderInquiry(BaseModel):
+class OrderInquiry(TenantScopedModel, BaseModel):
     """A 'chat to order' lead — captured when a shopper taps the order button.
 
     Persisted so a lead is never lost even if the store's Telegram bot isn't

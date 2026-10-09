@@ -13,6 +13,7 @@ from apps.catalog.models import Variant
 from apps.common.audit import record_audit
 from apps.common.audit_mixins import AuditedModelViewSet
 from apps.common.models import AuditLog
+from apps.tenants.admin_mixins import TenantScopedAdminMixin
 
 from . import services
 from .models import StockItem, Warehouse
@@ -24,7 +25,7 @@ class WarehouseAdminSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "code", "is_default", "is_active")
 
 
-class WarehouseAdminViewSet(AuditedModelViewSet):
+class WarehouseAdminViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     permission_classes = [IsAdminRole]
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseAdminSerializer
@@ -66,6 +67,9 @@ class StockAdminView(APIView):
         variant_id = request.query_params.get("variant")
         if variant_id:
             qs = qs.filter(variant_id=variant_id)
+        tenant = getattr(request, "tenant", None)
+        if tenant is not None:
+            qs = qs.filter(variant__product__tenant_id=tenant.id)
         return Response(StockItemSerializer(qs, many=True).data)
 
     @extend_schema(
@@ -80,7 +84,9 @@ class StockAdminView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         warehouse = None
         if data.get("warehouse_code"):
-            warehouse = Warehouse.objects.filter(code=data["warehouse_code"]).first()
+            warehouse = Warehouse.objects.filter(
+                code=data["warehouse_code"], tenant_id=variant.product.tenant_id
+            ).first()
         item = services.set_stock(variant, data["quantity"], warehouse=warehouse)
         record_audit(
             actor=request.user,

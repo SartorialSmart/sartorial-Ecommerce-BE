@@ -17,7 +17,7 @@ def _stored(key: str) -> str:
     We read the row directly — not get_all_settings(), which merges in spec
     defaults and so can't tell "admin set it" from "using the default".
     """
-    row = Setting.objects.filter(key=key).first()
+    row = Setting.objects.filter(key=key, tenant__isnull=True).first()
     return str(row.value) if row and row.value not in (None, "") else ""
 
 

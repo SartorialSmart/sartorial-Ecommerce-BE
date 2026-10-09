@@ -20,7 +20,12 @@ class BlogPostViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "slug"
 
     def get_queryset(self):  # type: ignore[override]
+        from apps.tenants.services import get_effective_tenant, tenant_filter
+
         qs = published_posts()
+        if getattr(self, "swagger_fake_view", False):
+            return qs
+        qs = qs.filter(**tenant_filter(get_effective_tenant(self.request)))
         params = self.request.query_params
         if cat := params.get("category"):
             qs = qs.filter(category__slug=cat)
@@ -40,4 +45,11 @@ class BlogCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = BlogCategorySerializer
     lookup_field = "slug"
-    queryset = BlogCategory.objects.all()
+
+    def get_queryset(self):  # type: ignore[override]
+        from apps.tenants.services import get_effective_tenant, tenant_filter
+
+        qs = BlogCategory.objects.all()
+        if getattr(self, "swagger_fake_view", False):
+            return qs
+        return qs.filter(**tenant_filter(get_effective_tenant(self.request)))

@@ -13,6 +13,7 @@ from apps.accounts.permissions import IsAdminRole
 from apps.common.audit import record_audit
 from apps.common.audit_mixins import AuditedModelViewSet
 from apps.common.models import AuditLog
+from apps.tenants.admin_mixins import TenantScopedAdminMixin
 
 from . import reviews as review_services
 from . import services
@@ -42,7 +43,7 @@ from .models import (
 from .serializers import ProductImageSerializer, VariantSerializer
 
 
-class _AdminModelViewSet(AuditedModelViewSet):
+class _AdminModelViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     permission_classes = [IsAdminRole]
 
 
@@ -57,18 +58,21 @@ class BrandAdminViewSet(_AdminModelViewSet):
 
 
 class OptionTypeAdminViewSet(_AdminModelViewSet):
+    tenant_filter = "product__tenant"
     queryset = OptionType.objects.all()
     serializer_class = OptionTypeAdminSerializer
     filterset_fields = ["product"]
 
 
 class OptionValueAdminViewSet(_AdminModelViewSet):
+    tenant_filter = "option_type__product__tenant"
     queryset = OptionValue.objects.all()
     serializer_class = OptionValueAdminSerializer
     filterset_fields = ["option_type"]
 
 
 class VariantAdminViewSet(_AdminModelViewSet):
+    tenant_filter = "product__tenant"
     queryset = Variant.objects.all().prefetch_related("variant_options__option_value__option_type")
     serializer_class = VariantAdminSerializer
     filterset_fields = ["product"]
@@ -91,6 +95,7 @@ class VariantAdminViewSet(_AdminModelViewSet):
 class ProductImageAdminViewSet(_AdminModelViewSet):
     """Manage image records. Deleting one removes the Cloudinary asset (via signal)."""
 
+    tenant_filter = "product__tenant"
     queryset = ProductImage.objects.all()
     serializer_class = ProductImageSerializer
     filterset_fields = ["product", "variant"]
@@ -118,10 +123,13 @@ class ProductAdminViewSet(_AdminModelViewSet):
     @action(detail=False, methods=["post"], url_path="create-full")
     def create_full(self, request: Request) -> Response:
         """Create a whole product (details + image + variants + stock) atomically."""
+        from apps.tenants.services import get_effective_tenant
+
         serializer = ProductCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         product = services.create_product_full(
+            tenant=get_effective_tenant(request),
             title=d["title"],
             description=d.get("description", ""),
             category_id=d.get("category"),
@@ -201,10 +209,11 @@ class ProductAdminViewSet(_AdminModelViewSet):
         return Response(services.upload_signature())
 
 
-class ProductReviewAdminViewSet(AuditedModelViewSet):
+class ProductReviewAdminViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     """Moderate customer reviews: list, hide/show (status) or delete."""
 
     permission_classes = [IsAdminRole]
+    tenant_filter = "product__tenant"
     queryset = ProductReview.objects.select_related("product").all()
     serializer_class = ProductReviewAdminSerializer
     filterset_fields = ["status", "product", "rating"]

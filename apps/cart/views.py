@@ -28,11 +28,14 @@ def _session_key(request: Request) -> str:
 
 
 def _current_cart(request: Request, *, create: bool = False) -> Cart | None:
+    from apps.tenants.services import get_effective_tenant
+
     user = request.user if request.user and request.user.is_authenticated else None
     session_key = "" if user else _session_key(request)
+    tenant = get_effective_tenant(request)
     if create:
-        return services.get_or_create_cart(user=user, session_key=session_key)
-    return selectors.get_active_cart(user=user, session_key=session_key)
+        return services.get_or_create_cart(user=user, session_key=session_key, tenant=tenant)
+    return selectors.get_active_cart(user=user, session_key=session_key, tenant=tenant)
 
 
 def _cart_payload(request: Request, cart: Cart) -> dict[str, Any]:

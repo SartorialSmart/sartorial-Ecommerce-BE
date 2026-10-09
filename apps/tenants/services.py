@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
@@ -78,3 +80,28 @@ def get_or_create_default_tenant() -> Tenant:
         defaults={"name": DEFAULT_STORE_NAME, "type": TenantType.INDEPENDENT},
     )
     return tenant
+
+
+def get_effective_tenant(request: Any | None) -> Tenant | None:
+    """Tenant to scope a request to. Read-path safe (never writes).
+
+    ``request.tenant`` (middleware) wins; otherwise the ``default`` tenant when
+    it exists (pre-multitenant data, tests, storeless browsing); else None,
+    in which case callers see legacy unscoped (``tenant NULL``) rows only —
+    never another store's data.
+    """
+    tenant = getattr(request, "tenant", None) if request is not None else None
+    if tenant is not None:
+        return tenant
+    return Tenant.objects.filter(slug="default").first()
+
+
+def tenant_filter(tenant: Any | None, path: str = "tenant") -> dict[str, Any]:
+    """ORM filter scoping a queryset to one store.
+
+    A resolved tenant filters to its rows; ``None`` restricts to legacy
+    unscoped rows so an unknown store never sees another store's catalogue.
+    """
+    if tenant is None:
+        return {f"{path}__isnull": True}
+    return {path: getattr(tenant, "id", tenant)}

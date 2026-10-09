@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 from apps.common.audit import record_audit
 from apps.common.models import AuditLog
+from apps.tenants.admin_mixins import TenantScopedAdminMixin
 
 from . import services
 from .models import Order, OrderInquiry, OrderStatus
@@ -46,7 +47,10 @@ class OrderInquirySerializer(serializers.ModelSerializer):
 
 
 class OrderInquiryAdminViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+    TenantScopedAdminMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
 ):
     """Read-only 'chat to order' leads for the admin to follow up on."""
 
@@ -57,7 +61,12 @@ class OrderInquiryAdminViewSet(
     search_fields = ["customer_name", "customer_phone", "summary"]
 
 
-class OrderAdminViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class OrderAdminViewSet(
+    TenantScopedAdminMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     permission_classes = [IsAdminRole]
     queryset = Order.objects.all().prefetch_related(
         "lines__variant__product__images",

@@ -67,7 +67,11 @@ def mark_paid(
     order.save()
 
     if order.coupon_codes:
-        Coupon.objects.filter(code__in=order.coupon_codes).update(used_count=F("used_count") + 1)
+        from django.db.models import Q
+
+        Coupon.objects.filter(code__in=order.coupon_codes).filter(
+            Q(tenant_id=order.tenant_id) | Q(tenant__isnull=True)
+        ).update(used_count=F("used_count") + 1)
     _on_paid(order)
     return order
 
@@ -196,6 +200,7 @@ def checkout(
         )
 
     order = Order.objects.create(
+        tenant_id=cart.tenant_id,
         owner=owner,
         contact_email=contact_email,
         contact_name=contact_name,

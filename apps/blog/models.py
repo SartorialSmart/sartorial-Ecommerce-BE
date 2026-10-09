@@ -12,6 +12,7 @@ from django.db import models
 from django.utils.text import slugify
 
 from apps.common.models import BaseModel
+from apps.tenants.models import TenantScopedModel
 
 
 def unique_slug(model: type[models.Model], base: str, *, exclude_pk: object = None) -> str:
@@ -24,14 +25,17 @@ def unique_slug(model: type[models.Model], base: str, *, exclude_pk: object = No
     return slug
 
 
-class BlogCategory(BaseModel):
-    name = models.CharField(max_length=120, unique=True)
-    slug = models.SlugField(max_length=140, unique=True, blank=True)
+class BlogCategory(TenantScopedModel, BaseModel):
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, blank=True)
     description = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ("name",)
         verbose_name_plural = "blog categories"
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "slug"], name="uniq_blogcat_slug_per_tenant"),
+        ]
 
     def save(self, *args: object, **kwargs: object) -> None:
         if not self.slug:
@@ -49,9 +53,9 @@ class BlogStatus(models.TextChoices):
     PUBLISHED = "published", "Published"
 
 
-class BlogPost(BaseModel):
+class BlogPost(TenantScopedModel, BaseModel):
     title = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=280, unique=True, blank=True)
+    slug = models.SlugField(max_length=280, blank=True)
     excerpt = models.TextField(blank=True)
     body = models.TextField(blank=True, help_text="Markdown content.")
     cover_image_public_id = models.CharField(max_length=255, blank=True)
@@ -82,6 +86,11 @@ class BlogPost(BaseModel):
     class Meta:
         ordering = ("-published_at", "-created_at")
         indexes = [models.Index(fields=["status", "published_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "slug"], name="uniq_blogpost_slug_per_tenant"
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.title

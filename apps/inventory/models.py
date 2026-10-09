@@ -14,16 +14,22 @@ from django.db import models
 
 from apps.catalog.models import Variant
 from apps.common.models import BaseModel, TimeStampedModel
+from apps.tenants.models import TenantScopedModel
 
 
-class Warehouse(TimeStampedModel):
+class Warehouse(TenantScopedModel, TimeStampedModel):
     name = models.CharField(max_length=120)
-    code = models.SlugField(max_length=40, unique=True)
+    code = models.SlugField(max_length=40)
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("-is_default", "name")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "code"], name="uniq_warehouse_code_per_tenant"
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name

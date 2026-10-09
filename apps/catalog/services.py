@@ -186,6 +186,7 @@ def create_product_full(
     default_price: Decimal | None = None,
     sku_prefix: str | None = None,
     stock_per_variant: int = 0,
+    tenant: Any = None,
 ) -> Product:
     """Create a product and everything it needs in ONE transaction.
 
@@ -193,17 +194,21 @@ def create_product_full(
     types/values + a generated variant matrix), plus an optional featured image
     and starting stock. Because it's atomic, a failure anywhere (e.g. a SKU
     clash) rolls the whole thing back — so a retry never leaves orphan products.
+    Everything is created inside ``tenant`` (default store when omitted).
     """
     # Local imports avoid any import cycle at module load.
     from django.utils.text import slugify
 
     from apps.inventory.services import set_stock
+    from apps.tenants.services import get_or_create_default_tenant
 
+    tenant = tenant or get_or_create_default_tenant()
     category: Category | None = None
     if new_category.strip():
         name = new_category.strip()
         category, created = Category.objects.get_or_create(
             slug=slugify(name) or name.lower(),
+            tenant_id=tenant.id,
             defaults={"name": name, "image_public_id": new_category_image.strip()},
         )
         # Backfill the image if the category already existed without one.
@@ -211,8 +216,8 @@ def create_product_full(
             category.image_public_id = new_category_image.strip()
             category.save(update_fields=["image_public_id"])
     elif category_id:
-        category = Category.objects.filter(id=category_id).first()
-    brand = Brand.objects.filter(id=brand_id).first() if brand_id else None
+        category = Category.objects.filter(id=category_id, tenant_id=tenant.id).first()
+    brand = Brand.objects.filter(id=brand_id, tenant_id=tenant.id).first() if brand_id else None
     supplier = None
     if supplier_id and fulfillment_type == "dropship":
         from apps.suppliers.models import Supplier
@@ -220,6 +225,7 @@ def create_product_full(
         supplier = Supplier.objects.filter(id=supplier_id).first()
 
     product = Product.objects.create(
+        tenant_id=tenant.id,
         title=title.strip(),
         description=description.strip(),
         category=category,

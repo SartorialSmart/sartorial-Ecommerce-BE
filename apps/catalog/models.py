@@ -25,6 +25,7 @@ from django.db import models
 from django.utils.text import slugify
 
 from apps.common.models import BaseModel, TimeStampedModel
+from apps.tenants.models import TenantScopedModel
 
 
 class FulfillmentType(models.TextChoices):
@@ -37,11 +38,11 @@ def _generate_short_id() -> str:
     return secrets.token_urlsafe(6)
 
 
-class Category(TimeStampedModel):
-    """Self-referential category tree (adjacency list)."""
+class Category(TenantScopedModel, TimeStampedModel):
+    """Self-referential category tree (adjacency list), scoped per store."""
 
     name = models.CharField(max_length=120)
-    slug = models.SlugField(max_length=140, unique=True)
+    slug = models.SlugField(max_length=140)
     parent = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.CASCADE, related_name="children"
     )
@@ -53,26 +54,34 @@ class Category(TimeStampedModel):
     class Meta:
         ordering = ("position", "name")
         verbose_name_plural = "categories"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "slug"], name="uniq_category_slug_per_tenant"
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name
 
 
-class Brand(TimeStampedModel):
+class Brand(TenantScopedModel, TimeStampedModel):
     name = models.CharField(max_length=120)
-    slug = models.SlugField(max_length=140, unique=True)
+    slug = models.SlugField(max_length=140)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("name",)
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "slug"], name="uniq_brand_slug_per_tenant"),
+        ]
 
     def __str__(self) -> str:
         return self.name
 
 
-class Product(BaseModel):
+class Product(TenantScopedModel, BaseModel):
     title = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=280, unique=True)
+    slug = models.SlugField(max_length=280)
     # Public, unguessable share handle. The canonical share URL is /p/<short_id>.
     short_id = models.CharField(
         max_length=16, unique=True, default=_generate_short_id, editable=False
@@ -116,6 +125,9 @@ class Product(BaseModel):
 
     class Meta:
         ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "slug"], name="uniq_product_slug_per_tenant"),
+        ]
 
     def __str__(self) -> str:
         return self.title

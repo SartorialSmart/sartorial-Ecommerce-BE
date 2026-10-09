@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from apps.accounts.permissions import IsAdminRole
 from apps.common.audit_mixins import AuditedModelViewSet
+from apps.tenants.admin_mixins import TenantScopedAdminMixin
 
 from .models import Coupon
 
@@ -32,7 +33,7 @@ class CouponAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ("used_count",)
 
 
-class CouponAdminViewSet(AuditedModelViewSet):
+class CouponAdminViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     permission_classes = [IsAdminRole]
     queryset = Coupon.objects.all()
     serializer_class = CouponAdminSerializer

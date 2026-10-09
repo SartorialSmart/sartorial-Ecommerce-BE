@@ -165,17 +165,31 @@ class TenantScopedManager(models.Manager):
 
 
 class TenantScopedModel(models.Model):
-    """Mixin for Phase 3: attach ``tenant`` to domain models.
+    """Mixin attaching ``tenant`` to domain models (isolated stores, shared DB).
 
-    Usage: ``class Product(TenantScopedModel, BaseModel): ...`` with
-    ``objects = TenantScopedManager()``. All service-layer reads must go
-    through ``.for_tenant(request.tenant)``; admin/platform views bypass via
-    ``all_objects`` or explicit tenant filter.
+    The FK is nullable at the DB level so the rollout is incremental, but
+    :meth:`save` backfills the ``default`` tenant whenever it is empty — so in
+    practice every row belongs to exactly one store. Reads must go through
+    ``.for_tenant(effective_tenant)`` (see :mod:`apps.tenants.services`).
     """
 
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="%(class)s_set")
+    tenant = models.ForeignKey(
+        Tenant,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="%(class)s_set",
+        db_index=True,
+    )
 
     objects = TenantScopedManager()
 
     class Meta:
         abstract = True
+
+    def save(self, *args: object, **kwargs: object) -> None:
+        if self.tenant_id is None:
+            from .services import get_or_create_default_tenant
+
+            self.tenant = get_or_create_default_tenant()
+        super().save(*args, **kwargs)

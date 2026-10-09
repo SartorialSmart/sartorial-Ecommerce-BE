@@ -40,9 +40,12 @@ def _session_key(request: Request) -> str:
 
 
 def _current_cart(request: Request) -> Cart | None:
+    from apps.tenants.services import get_effective_tenant
+
     user = request.user if request.user and request.user.is_authenticated else None
     session_key = "" if user else _session_key(request)
-    return cart_selectors.get_active_cart(user=user, session_key=session_key)
+    tenant = get_effective_tenant(request)
+    return cart_selectors.get_active_cart(user=user, session_key=session_key, tenant=tenant)
 
 
 def _order_payload(order: Order) -> dict[str, Any]:

@@ -21,13 +21,14 @@ from django.utils import timezone
 from apps.catalog.models import Variant
 from apps.common.models import BaseModel
 from apps.promotions.models import Coupon
+from apps.tenants.models import TenantScopedModel
 
 
 def generate_share_token() -> str:
     return secrets.token_urlsafe(24)
 
 
-class Cart(BaseModel):
+class Cart(TenantScopedModel, BaseModel):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         ORDERED = "ordered", "Ordered"

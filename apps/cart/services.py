@@ -17,16 +17,27 @@ from .models import Cart, CartLine, generate_share_token
 
 
 @transaction.atomic
-def get_or_create_cart(*, user: Any = None, session_key: str = "") -> Cart:
+def get_or_create_cart(*, user: Any = None, session_key: str = "", tenant: Any = None) -> Cart:
+    """One active cart per (owner, store) or (session, store)."""
+    from apps.tenants.services import get_or_create_default_tenant
+
+    tenant = tenant or get_or_create_default_tenant()
+    tenant_id = getattr(tenant, "id", tenant)
     if user is not None and getattr(user, "is_authenticated", False):
         cart, _ = Cart.objects.get_or_create(
-            owner=user, status=Cart.Status.ACTIVE, defaults={"session_key": session_key}
+            owner=user,
+            status=Cart.Status.ACTIVE,
+            tenant_id=tenant_id,
+            defaults={"session_key": session_key},
         )
         return cart
     if not session_key:
         raise DomainError("A session is required for an anonymous cart.", code="no_session")
     cart, _ = Cart.objects.get_or_create(
-        owner__isnull=True, session_key=session_key, status=Cart.Status.ACTIVE
+        owner__isnull=True,
+        session_key=session_key,
+        status=Cart.Status.ACTIVE,
+        tenant_id=tenant_id,
     )
     return cart
 
@@ -43,6 +54,8 @@ def add_item(cart: Cart, *, variant_id: str, quantity: int = 1) -> CartLine:
     if quantity <= 0:
         raise DomainError("Quantity must be positive.", code="invalid_quantity")
     variant = _active_variant(variant_id)
+    if variant.product.tenant_id != cart.tenant_id:
+        raise DomainError("That product is not sold in this store.", code="variant_wrong_store")
     line = cart.lines.filter(variant=variant).first()
     new_qty = (line.quantity if line else 0) + quantity
     # Enforce the minimum order quantity (wholesale / MOQ).
@@ -80,7 +93,7 @@ def remove_item(cart: Cart, *, line_id: str) -> None:
 
 @transaction.atomic
 def apply_coupon(cart: Cart, *, code: str) -> None:
-    coupon = promo_services.validate_code(code)
+    coupon = promo_services.validate_code(code, tenant_id=cart.tenant_id)
     # Surface obvious problems early (full re-check happens at total computation).
     if not coupon.is_active:
         raise promo_services.CouponError(

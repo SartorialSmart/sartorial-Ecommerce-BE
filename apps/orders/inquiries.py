@@ -95,6 +95,7 @@ def create_inquiry(
     customer_phone: str = "",
     note: str = "",
     user: Any = None,
+    tenant: Any = None,
 ) -> tuple[OrderInquiry, str]:
     """Build the message, persist the inquiry, push to ops Telegram if possible."""
     if context == "product" and variant is not None:
@@ -106,15 +107,23 @@ def create_inquiry(
 
     summary = body + _contact_block(customer_name, customer_phone, note)
 
-    inquiry = OrderInquiry.objects.create(
-        channel=channel,
-        context=context,
-        user=user if (user is not None and getattr(user, "is_authenticated", False)) else None,
-        customer_name=customer_name,
-        customer_phone=customer_phone,
-        note=note,
-        summary=summary,
-    )
+    if tenant is None:
+        if variant is not None:
+            tenant = getattr(getattr(variant, "product", None), "tenant_id", None)
+        elif cart is not None:
+            tenant = getattr(cart, "tenant_id", None)
+    create_kwargs: dict[str, Any] = {
+        "channel": channel,
+        "context": context,
+        "user": user if (user is not None and getattr(user, "is_authenticated", False)) else None,
+        "customer_name": customer_name,
+        "customer_phone": customer_phone,
+        "note": note,
+        "summary": summary,
+    }
+    if tenant is not None:
+        create_kwargs["tenant_id"] = getattr(tenant, "id", tenant)
+    inquiry = OrderInquiry.objects.create(**create_kwargs)
 
     # Real-time push to store ops (Telegram), best-effort.
     ops = str(getattr(settings, "TELEGRAM_DEFAULT_CHAT_ID", "") or "")

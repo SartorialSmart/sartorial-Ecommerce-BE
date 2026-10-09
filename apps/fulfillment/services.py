@@ -72,7 +72,7 @@ def _ship_internal(order: Order, lines: list) -> None:
     now: a paid order must permanently hold its units (reservations expire on a
     TTL), so we remove them from on-hand at payment, independent of ship status.
     """
-    warehouse = inventory_services.get_default_warehouse()
+    warehouse = inventory_services.get_default_warehouse(order.tenant_id)
     shipment = Shipment.objects.create(
         order=order,
         kind=Shipment.Kind.INTERNAL,

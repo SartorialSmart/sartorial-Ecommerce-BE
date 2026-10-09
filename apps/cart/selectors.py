@@ -17,8 +17,10 @@ from apps.promotions import services as promo_services
 from .models import Cart, CartLine
 
 
-def get_active_cart(*, user: Any = None, session_key: str = "") -> Cart | None:
-    qs = Cart.objects.filter(status=Cart.Status.ACTIVE)
+def get_active_cart(*, user: Any = None, session_key: str = "", tenant: Any = None) -> Cart | None:
+    from apps.tenants.services import tenant_filter
+
+    qs = Cart.objects.filter(status=Cart.Status.ACTIVE, **tenant_filter(tenant))
     if user is not None and getattr(user, "is_authenticated", False):
         return qs.filter(owner=user).first()
     if session_key:

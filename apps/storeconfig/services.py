@@ -19,17 +19,22 @@ from .schema import get_spec
 
 
 @transaction.atomic
-def set_setting(key: str, value: Any, *, actor: Any = None) -> Setting:
-    """Validate and persist a single setting, recording an audit entry."""
+def set_setting(key: str, value: Any, *, actor: Any = None, tenant: Any = None) -> Setting:
+    """Validate and persist a single setting, recording an audit entry.
+
+    ``tenant=None`` writes the global override; otherwise the store's own.
+    """
     spec = get_spec(key)
     coerced = spec.validate(value)  # raises ValidationError on bad input
 
-    before = selectors.get_setting(key)
+    tenant_id = getattr(tenant, "id", tenant)
+    before = selectors.get_setting(key, tenant=tenant)
     setting, created = Setting.objects.update_or_create(
         key=key,
+        tenant_id=tenant_id,
         defaults={"section": spec.section, "value": coerced},
     )
-    selectors.invalidate_cache()
+    selectors.invalidate_cache(tenant)
 
     record_audit(
         actor=actor,
@@ -42,21 +47,22 @@ def set_setting(key: str, value: Any, *, actor: Any = None) -> Setting:
 
 
 @transaction.atomic
-def set_many(values: dict[str, Any], *, actor: Any = None) -> list[Setting]:
+def set_many(values: dict[str, Any], *, actor: Any = None, tenant: Any = None) -> list[Setting]:
     """Validate-then-write a batch atomically (all valid or nothing persists)."""
     # Validate everything first so a single bad key rejects the whole batch.
     coerced = {key: get_spec(key).validate(val) for key, val in values.items()}
-    return [set_setting(key, val, actor=actor) for key, val in coerced.items()]
+    return [set_setting(key, val, actor=actor, tenant=tenant) for key, val in coerced.items()]
 
 
 @transaction.atomic
-def reset_setting(key: str, *, actor: Any = None) -> None:
+def reset_setting(key: str, *, actor: Any = None, tenant: Any = None) -> None:
     """Remove an override so the key falls back to its spec default."""
     spec = get_spec(key)
-    before = selectors.get_setting(key)
-    deleted, _ = Setting.objects.filter(key=key).delete()
+    before = selectors.get_setting(key, tenant=tenant)
+    tenant_id = getattr(tenant, "id", tenant)
+    deleted, _ = Setting.objects.filter(key=key, tenant_id=tenant_id).delete()
     if deleted:
-        selectors.invalidate_cache()
+        selectors.invalidate_cache(tenant)
         record_audit(
             actor=actor,
             action=AuditLog.Action.DELETE,

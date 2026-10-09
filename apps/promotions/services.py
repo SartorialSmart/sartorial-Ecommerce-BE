@@ -138,8 +138,14 @@ def compute_discounts(
     return {"applied": [d.as_dict() for d in applied], "total": total}
 
 
-def validate_code(code: str) -> Coupon:
-    coupon = Coupon.objects.filter(code=code.strip().upper()).first()
+def validate_code(code: str, tenant_id: Any = None) -> Coupon:
+    """Look up a coupon by code, scoped to a store (falls back to global rows)."""
+    qs = Coupon.objects.filter(code=code.strip().upper())
+    coupon = None
+    if tenant_id is not None:
+        coupon = qs.filter(tenant_id=tenant_id).first()
+    if coupon is None:
+        coupon = qs.filter(tenant__isnull=True).first()
     if coupon is None:
         raise CouponError(f"Unknown coupon code: {code}.", code="coupon_unknown")
     return coupon

@@ -32,7 +32,14 @@ class CategoryListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     serializer_class = CategorySerializer
     pagination_class = None
-    queryset = Category.objects.filter(is_active=True)
+
+    def get_queryset(self):  # type: ignore[no-untyped-def]
+        from apps.tenants.services import get_effective_tenant, tenant_filter
+
+        qs = Category.objects.filter(is_active=True)
+        if getattr(self, "swagger_fake_view", False):
+            return qs
+        return qs.filter(**tenant_filter(get_effective_tenant(self.request)))
 
 
 class ProductListView(generics.ListAPIView):
@@ -49,7 +56,13 @@ class ProductListView(generics.ListAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):  # type: ignore[no-untyped-def]
-        return selectors.active_products().prefetch_related(
+        from apps.tenants.services import get_effective_tenant
+
+        if getattr(self, "swagger_fake_view", False):
+            # Schema generation runs without a database; skip tenant resolution.
+            return Product.objects.all()
+        tenant = get_effective_tenant(self.request)
+        return selectors.active_products(tenant).prefetch_related(
             "images",
             "option_types",
             Prefetch(
@@ -71,7 +84,9 @@ class ProductDetailView(APIView):
 
     @extend_schema(responses={200: ProductDetailSerializer}, tags=["catalog"])
     def get(self, request: Request, slug: str) -> Response:
-        product = selectors.get_product_by_slug(slug)
+        from apps.tenants.services import get_effective_tenant
+
+        product = selectors.get_product_by_slug(slug, get_effective_tenant(request))
         if product is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         currency = resolve_currency(request.query_params.get("currency"))
@@ -85,7 +100,9 @@ class ProductShareView(APIView):
 
     @extend_schema(responses={200: ProductDetailSerializer}, tags=["catalog"])
     def get(self, request: Request, handle: str) -> Response:
-        product = selectors.get_product_by_share_handle(handle)
+        from apps.tenants.services import get_effective_tenant
+
+        product = selectors.get_product_by_share_handle(handle, get_effective_tenant(request))
         if product is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         currency = resolve_currency(request.query_params.get("currency"))
@@ -103,7 +120,9 @@ class ResolveVariantView(APIView):
         tags=["catalog"],
     )
     def post(self, request: Request, slug: str) -> Response:
-        product = selectors.get_product_by_slug(slug)
+        from apps.tenants.services import get_effective_tenant
+
+        product = selectors.get_product_by_slug(slug, get_effective_tenant(request))
         if product is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         serializer = ResolveVariantRequestSerializer(data=request.data)
@@ -130,8 +149,15 @@ class ProductReviewListView(generics.ListAPIView):
     serializer_class = ProductReviewSerializer
 
     def get_queryset(self):  # type: ignore[override]
-        return ProductReview.objects.filter(
+        from apps.tenants.services import get_effective_tenant, tenant_filter
+
+        qs = ProductReview.objects.filter(
             product__slug=self.kwargs["slug"], status=ReviewStatus.PUBLISHED
+        )
+        if getattr(self, "swagger_fake_view", False):
+            return qs
+        return qs.filter(
+            **tenant_filter(get_effective_tenant(self.request), path="product__tenant")
         )
 
 

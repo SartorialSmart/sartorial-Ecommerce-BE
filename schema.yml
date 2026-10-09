@@ -270,6 +270,7 @@ paths:
   /api/v1/admin/blog/categories/:
     get:
       operationId: admin_blog_categories_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - name: ordering
         required: false
@@ -309,6 +310,7 @@ paths:
           description: ''
     post:
       operationId: admin_blog_categories_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -336,6 +338,7 @@ paths:
   /api/v1/admin/blog/categories/{id}/:
     get:
       operationId: admin_blog_categories_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -358,6 +361,7 @@ paths:
           description: ''
     put:
       operationId: admin_blog_categories_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -392,6 +396,7 @@ paths:
           description: ''
     patch:
       operationId: admin_blog_categories_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -425,6 +430,7 @@ paths:
           description: ''
     delete:
       operationId: admin_blog_categories_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -444,6 +450,7 @@ paths:
   /api/v1/admin/blog/posts/:
     get:
       operationId: admin_blog_posts_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: query
         name: category
@@ -498,6 +505,7 @@ paths:
           description: ''
     post:
       operationId: admin_blog_posts_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -525,6 +533,7 @@ paths:
   /api/v1/admin/blog/posts/{id}/:
     get:
       operationId: admin_blog_posts_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -547,6 +556,7 @@ paths:
           description: ''
     put:
       operationId: admin_blog_posts_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -581,6 +591,7 @@ paths:
           description: ''
     patch:
       operationId: admin_blog_posts_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -614,6 +625,7 @@ paths:
           description: ''
     delete:
       operationId: admin_blog_posts_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -633,6 +645,7 @@ paths:
   /api/v1/admin/blog/posts/{id}/publish/:
     post:
       operationId: admin_blog_posts_publish_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -668,6 +681,7 @@ paths:
   /api/v1/admin/blog/posts/{id}/unpublish/:
     post:
       operationId: admin_blog_posts_unpublish_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -732,6 +746,7 @@ paths:
   /api/v1/admin/catalog/brands/:
     get:
       operationId: admin_catalog_brands_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - name: ordering
         required: false
@@ -771,6 +786,7 @@ paths:
           description: ''
     post:
       operationId: admin_catalog_brands_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -798,6 +814,7 @@ paths:
   /api/v1/admin/catalog/brands/{id}/:
     get:
       operationId: admin_catalog_brands_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -819,6 +836,7 @@ paths:
           description: ''
     put:
       operationId: admin_catalog_brands_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -852,6 +870,7 @@ paths:
           description: ''
     patch:
       operationId: admin_catalog_brands_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -884,6 +903,7 @@ paths:
           description: ''
     delete:
       operationId: admin_catalog_brands_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -902,6 +922,7 @@ paths:
   /api/v1/admin/catalog/categories/:
     get:
       operationId: admin_catalog_categories_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - name: ordering
         required: false
@@ -941,6 +962,7 @@ paths:
           description: ''
     post:
       operationId: admin_catalog_categories_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -968,6 +990,7 @@ paths:
   /api/v1/admin/catalog/categories/{id}/:
     get:
       operationId: admin_catalog_categories_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -989,6 +1012,7 @@ paths:
           description: ''
     put:
       operationId: admin_catalog_categories_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1022,6 +1046,7 @@ paths:
           description: ''
     patch:
       operationId: admin_catalog_categories_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1054,6 +1079,7 @@ paths:
           description: ''
     delete:
       operationId: admin_catalog_categories_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1267,6 +1293,7 @@ paths:
   /api/v1/admin/catalog/option-types/:
     get:
       operationId: admin_catalog_option_types_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - name: ordering
         required: false
@@ -1311,6 +1338,7 @@ paths:
           description: ''
     post:
       operationId: admin_catalog_option_types_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -1338,6 +1366,7 @@ paths:
   /api/v1/admin/catalog/option-types/{id}/:
     get:
       operationId: admin_catalog_option_types_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1359,6 +1388,7 @@ paths:
           description: ''
     put:
       operationId: admin_catalog_option_types_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1392,6 +1422,7 @@ paths:
           description: ''
     patch:
       operationId: admin_catalog_option_types_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1424,6 +1455,7 @@ paths:
           description: ''
     delete:
       operationId: admin_catalog_option_types_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1442,6 +1474,7 @@ paths:
   /api/v1/admin/catalog/option-values/:
     get:
       operationId: admin_catalog_option_values_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: query
         name: option_type
@@ -1485,6 +1518,7 @@ paths:
           description: ''
     post:
       operationId: admin_catalog_option_values_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -1512,6 +1546,7 @@ paths:
   /api/v1/admin/catalog/option-values/{id}/:
     get:
       operationId: admin_catalog_option_values_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1533,6 +1568,7 @@ paths:
           description: ''
     put:
       operationId: admin_catalog_option_values_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1566,6 +1602,7 @@ paths:
           description: ''
     patch:
       operationId: admin_catalog_option_values_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1598,6 +1635,7 @@ paths:
           description: ''
     delete:
       operationId: admin_catalog_option_values_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1616,6 +1654,7 @@ paths:
   /api/v1/admin/catalog/products/:
     get:
       operationId: admin_catalog_products_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: query
         name: brand
@@ -1667,6 +1706,7 @@ paths:
           description: ''
     post:
       operationId: admin_catalog_products_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -1694,6 +1734,7 @@ paths:
   /api/v1/admin/catalog/products/{id}/:
     get:
       operationId: admin_catalog_products_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1716,6 +1757,7 @@ paths:
           description: ''
     put:
       operationId: admin_catalog_products_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1750,6 +1792,7 @@ paths:
           description: ''
     patch:
       operationId: admin_catalog_products_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1783,6 +1826,7 @@ paths:
           description: ''
     delete:
       operationId: admin_catalog_products_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -1802,6 +1846,7 @@ paths:
   /api/v1/admin/catalog/products/{id}/generate-variants/:
     post:
       operationId: admin_catalog_products_generate_variants_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: query
         name: brand
@@ -1873,6 +1918,7 @@ paths:
   /api/v1/admin/catalog/products/{id}/images/:
     post:
       operationId: admin_catalog_products_images_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2090,6 +2136,7 @@ paths:
   /api/v1/admin/catalog/variants/:
     get:
       operationId: admin_catalog_variants_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - name: ordering
         required: false
@@ -2134,6 +2181,7 @@ paths:
           description: ''
     post:
       operationId: admin_catalog_variants_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -2161,6 +2209,7 @@ paths:
   /api/v1/admin/catalog/variants/{id}/:
     get:
       operationId: admin_catalog_variants_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2183,6 +2232,7 @@ paths:
           description: ''
     put:
       operationId: admin_catalog_variants_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2217,6 +2267,7 @@ paths:
           description: ''
     patch:
       operationId: admin_catalog_variants_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2250,6 +2301,7 @@ paths:
           description: ''
     delete:
       operationId: admin_catalog_variants_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2529,6 +2581,7 @@ paths:
   /api/v1/admin/inventory/warehouses/:
     get:
       operationId: admin_inventory_warehouses_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - name: ordering
         required: false
@@ -2568,6 +2621,7 @@ paths:
           description: ''
     post:
       operationId: admin_inventory_warehouses_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -2595,6 +2649,7 @@ paths:
   /api/v1/admin/inventory/warehouses/{id}/:
     get:
       operationId: admin_inventory_warehouses_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2616,6 +2671,7 @@ paths:
           description: ''
     put:
       operationId: admin_inventory_warehouses_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2649,6 +2705,7 @@ paths:
           description: ''
     patch:
       operationId: admin_inventory_warehouses_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2681,6 +2738,7 @@ paths:
           description: ''
     delete:
       operationId: admin_inventory_warehouses_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -2853,6 +2911,7 @@ paths:
   /api/v1/admin/orders/:
     get:
       operationId: admin_orders_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: query
         name: currency
@@ -2919,6 +2978,7 @@ paths:
   /api/v1/admin/orders/{number}/:
     get:
       operationId: admin_orders_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: number
@@ -2973,6 +3033,7 @@ paths:
   /api/v1/admin/orders/{number}/refund/:
     post:
       operationId: admin_orders_refund_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: number
@@ -3006,6 +3067,7 @@ paths:
   /api/v1/admin/orders/{number}/transition/:
     post:
       operationId: admin_orders_transition_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: number
@@ -3099,6 +3161,7 @@ paths:
   /api/v1/admin/promotions/coupons/:
     get:
       operationId: admin_promotions_coupons_list
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: query
         name: discount_type
@@ -3152,6 +3215,7 @@ paths:
           description: ''
     post:
       operationId: admin_promotions_coupons_create
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       tags:
       - admin
       requestBody:
@@ -3179,6 +3243,7 @@ paths:
   /api/v1/admin/promotions/coupons/{id}/:
     get:
       operationId: admin_promotions_coupons_retrieve
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -3200,6 +3265,7 @@ paths:
           description: ''
     put:
       operationId: admin_promotions_coupons_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -3233,6 +3299,7 @@ paths:
           description: ''
     patch:
       operationId: admin_promotions_coupons_partial_update
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id
@@ -3265,6 +3332,7 @@ paths:
           description: ''
     delete:
       operationId: admin_promotions_coupons_destroy
+      description: Filter + assign by tenant. Expects a DRF ``ModelViewSet`` subclass.
       parameters:
       - in: path
         name: id

@@ -13,14 +13,15 @@ from decimal import Decimal
 from django.db import models
 
 from apps.common.models import TimeStampedModel
+from apps.tenants.models import TenantScopedModel
 
 
-class Coupon(TimeStampedModel):
+class Coupon(TenantScopedModel, TimeStampedModel):
     class DiscountType(models.TextChoices):
         PERCENTAGE = "percentage", "Percentage"
         FIXED = "fixed", "Fixed amount"
 
-    code = models.CharField(max_length=40, unique=True)
+    code = models.CharField(max_length=40)
     description = models.CharField(max_length=255, blank=True)
     discount_type = models.CharField(max_length=12, choices=DiscountType.choices)
     # For percentage: 0–100. For fixed: an amount in the store base currency.
@@ -49,6 +50,9 @@ class Coupon(TimeStampedModel):
 
     class Meta:
         ordering = ("code",)
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "code"], name="uniq_coupon_per_tenant"),
+        ]
 
     def __str__(self) -> str:
         return self.code

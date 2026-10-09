@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.db.models import Min, Prefetch, QuerySet
 
 from .models import OptionValue, Product, Variant
 from .services import compute_options_key
 
 
-def active_products() -> QuerySet[Product]:
+def _tenant_filter(tenant: Any | None) -> dict[str, Any]:
+    from apps.tenants.services import tenant_filter
+
+    return tenant_filter(tenant)
+
+
+def active_products(tenant: Any | None = None) -> QuerySet[Product]:
     return (
-        Product.objects.filter(is_active=True)
+        Product.objects.filter(is_active=True, **_tenant_filter(tenant))
         .select_related("category", "brand")
         .annotate(price_from=Min("variants__price"))
     )
 
 
-def product_detail_queryset() -> QuerySet[Product]:
+def product_detail_queryset(tenant: Any | None = None) -> QuerySet[Product]:
     """Products with everything the storefront detail view needs, prefetched."""
-    return Product.objects.filter(is_active=True).prefetch_related(
+    return Product.objects.filter(is_active=True, **_tenant_filter(tenant)).prefetch_related(
         "option_types__values",
         Prefetch(
             "variants",
@@ -29,13 +37,13 @@ def product_detail_queryset() -> QuerySet[Product]:
     )
 
 
-def get_product_by_slug(slug: str) -> Product | None:
-    return product_detail_queryset().filter(slug=slug).first()
+def get_product_by_slug(slug: str, tenant: Any | None = None) -> Product | None:
+    return product_detail_queryset(tenant).filter(slug=slug).first()
 
 
-def get_product_by_share_handle(handle: str) -> Product | None:
+def get_product_by_share_handle(handle: str, tenant: Any | None = None) -> Product | None:
     """Resolve a public share link by slug *or* short_id (both unauthenticated)."""
-    qs = product_detail_queryset()
+    qs = product_detail_queryset(tenant)
     return qs.filter(slug=handle).first() or qs.filter(short_id=handle).first()
 
 

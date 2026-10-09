@@ -9,6 +9,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
 from apps.common.audit_mixins import AuditedModelViewSet
+from apps.tenants.admin_mixins import TenantScopedAdminMixin
 
 from . import ai, services
 from .admin_serializers import (
@@ -19,13 +20,13 @@ from .admin_serializers import (
 from .models import BlogCategory, BlogPost, BlogStatus
 
 
-class BlogCategoryAdminViewSet(AuditedModelViewSet):
+class BlogCategoryAdminViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     permission_classes = [IsAdminRole]
     queryset = BlogCategory.objects.all()
     serializer_class = BlogCategoryAdminSerializer
 
 
-class BlogPostAdminViewSet(AuditedModelViewSet):
+class BlogPostAdminViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     permission_classes = [IsAdminRole]
     queryset = BlogPost.objects.select_related("category", "author").all()
     serializer_class = BlogPostAdminSerializer
@@ -33,7 +34,13 @@ class BlogPostAdminViewSet(AuditedModelViewSet):
     search_fields = ["title", "slug", "excerpt"]
 
     def perform_create(self, serializer: BlogPostAdminSerializer) -> None:
-        post = serializer.save(author=self.request.user)
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is not None and not serializer.validated_data.get("tenant"):
+            post = serializer.save(author=self.request.user, tenant=tenant)
+        else:
+            post = serializer.save(author=self.request.user)
+        # AuditedModelViewSet.perform_create is bypassed here (author kwarg);
+        # the model save() backfills the default store when no tenant was set.
         services.prepare_post(post)
         post.save()
 

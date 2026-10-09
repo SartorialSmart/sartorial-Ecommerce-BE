@@ -24,13 +24,31 @@ class InsufficientStock(ConflictError):
     default_code = "insufficient_stock"
 
 
-def get_default_warehouse() -> Warehouse:
-    wh = Warehouse.objects.filter(is_default=True, is_active=True).first()
+def get_default_warehouse(tenant_id: object = None) -> Warehouse:
+    """The default warehouse for a store (global legacy one when tenant is None)."""
+    qs = Warehouse.objects.filter(is_default=True, is_active=True)
+    if tenant_id is not None:
+        wh = qs.filter(tenant_id=tenant_id).first()
+        if wh is None:
+            wh, _ = Warehouse.objects.get_or_create(
+                code="main",
+                tenant_id=tenant_id,
+                defaults={"name": "Main warehouse", "is_default": True},
+            )
+        return wh
+    wh = qs.filter(tenant__isnull=True).first()
     if wh is None:
         wh, _ = Warehouse.objects.get_or_create(
-            code="main", defaults={"name": "Main warehouse", "is_default": True}
+            code="main",
+            tenant__isnull=True,
+            defaults={"name": "Main warehouse", "is_default": True},
         )
     return wh
+
+
+def _variant_tenant_id(variant: Variant) -> object:
+    product = getattr(variant, "product", None)
+    return getattr(product, "tenant_id", None)
 
 
 @transaction.atomic
@@ -38,7 +56,7 @@ def set_stock(variant: Variant, quantity: int, *, warehouse: Warehouse | None = 
     """Set the on-hand quantity for a variant in a warehouse."""
     if quantity < 0:
         raise DomainError("Quantity cannot be negative.", code="invalid_quantity")
-    warehouse = warehouse or get_default_warehouse()
+    warehouse = warehouse or get_default_warehouse(_variant_tenant_id(variant))
     item, _ = StockItem.objects.get_or_create(variant=variant, warehouse=warehouse)
     item.on_hand = quantity
     # Raise the stock-bar baseline to the new level on restock; selling never
@@ -90,7 +108,7 @@ def reserve(
             expires_at=expires_at,
         )
 
-    warehouse = warehouse or get_default_warehouse()
+    warehouse = warehouse or get_default_warehouse(_variant_tenant_id(variant))
     item, _ = StockItem.objects.select_for_update().get_or_create(
         variant=variant, warehouse=warehouse
     )
