@@ -1,0 +1,53 @@
+name: CI — tests, lint, checks
+
+on:
+  push:
+    branches:
+      - main
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies (incl. dev tools)
+        run: uv sync --frozen
+
+      - name: Django system checks
+        run: uv run python manage.py check
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+
+      - name: Migration drift check
+        run: uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+
+      - name: Run test suite
+        run: uv run pytest
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+
+      - name: Lint (ruff + black)
+        run: |
+          uv run ruff check .
+          uv run black --check .
+
+      # Type-checking position (technical report §7): strict mypy reports hundreds
+      # of pre-existing findings and gates nothing. Run it informationally until
+      # the codebase adopts the lighter (non-strict) settings — do NOT fail CI.
+      - name: Typecheck (informational, non-blocking)
+        run: uv run mypy . || true

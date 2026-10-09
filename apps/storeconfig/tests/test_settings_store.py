@@ -10,9 +10,15 @@ from apps.storeconfig.models import Setting
 
 @pytest.mark.django_db
 def test_get_setting_returns_spec_default_when_unset() -> None:
-    assert selectors.get_setting("store.name") == "IdealCommerce"
-    assert selectors.get_setting("currency.base") == "USD"
-    assert selectors.get_setting("currency.enabled") == ["USD", "EUR", "GBP"]
+    from config.branding import (
+        DEFAULT_BASE_CURRENCY,
+        DEFAULT_ENABLED_CURRENCIES,
+        DEFAULT_STORE_NAME,
+    )
+
+    assert selectors.get_setting("store.name") == DEFAULT_STORE_NAME
+    assert selectors.get_setting("currency.base") == DEFAULT_BASE_CURRENCY
+    assert selectors.get_setting("currency.enabled") == DEFAULT_ENABLED_CURRENCIES
 
 
 @pytest.mark.django_db
@@ -55,9 +61,11 @@ def test_set_setting_writes_audit_entry() -> None:
 
 @pytest.mark.django_db
 def test_reset_setting_falls_back_to_default() -> None:
+    from config.branding import DEFAULT_STORE_NAME
+
     services.set_setting("store.name", "Temp")
     services.reset_setting("store.name")
-    assert selectors.get_setting("store.name") == "IdealCommerce"
+    assert selectors.get_setting("store.name") == DEFAULT_STORE_NAME
     assert not Setting.objects.filter(key="store.name").exists()
 
 

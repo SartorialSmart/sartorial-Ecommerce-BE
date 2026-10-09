@@ -23,9 +23,7 @@ def setup(db) -> None:
 @pytest.mark.django_db
 def test_order_payload_includes_items_image_and_prices(setup) -> None:
     v = make_variant("5000.00", title="Detailed Tee")
-    ProductImage.objects.create(
-        product=v.product, public_id="orders/tee-primary", is_primary=True
-    )
+    ProductImage.objects.create(product=v.product, public_id="orders/tee-primary", is_primary=True)
 
     cart = cart_services.get_or_create_cart(session_key="detail")
     cart_services.add_item(cart, variant_id=str(v.id), quantity=3)

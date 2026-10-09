@@ -107,12 +107,14 @@ def test_admin_can_generate_variants_via_api(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_admin_add_image_then_delete(client: APIClient) -> None:
+    from django.conf import settings as _settings
+
     admin = UserFactory(role=Role.ADMIN, password="Pass12345!")
     client.force_authenticate(admin)
     product = ProductFactory()
     add = client.post(
         f"/api/v1/admin/catalog/products/{product.id}/images/",
-        {"public_id": "idealcommerce/products/api-img", "is_primary": True},
+        {"public_id": f"{_settings.CLOUDINARY_UPLOAD_FOLDER}/api-img", "is_primary": True},
         format="json",
     )
     assert add.status_code == 201

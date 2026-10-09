@@ -33,5 +33,11 @@ class IsSupplier(_RolePermission):
     role = Role.SUPPLIER
 
 
+class IsSeller(_RolePermission):
+    """Store operator (tenant owner/manager)."""
+
+    role = Role.SELLER
+
+
 class IsCustomer(_RolePermission):
     role = Role.CUSTOMER

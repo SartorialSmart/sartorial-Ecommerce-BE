@@ -31,9 +31,11 @@ class HealthCheckView(APIView):
     )
     def get(self, request: Request) -> Response:
         db_ok = self._check_database()
+        from config.branding import SERVICE_ID
+
         payload = {
             "status": "ok" if db_ok else "degraded",
-            "service": "idealcommerce-backend",
+            "service": SERVICE_ID,
             "checks": {"database": "ok" if db_ok else "error"},
         }
         code = status.HTTP_200_OK if db_ok else status.HTTP_503_SERVICE_UNAVAILABLE

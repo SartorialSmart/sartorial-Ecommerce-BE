@@ -17,6 +17,7 @@ from drf_spectacular.views import (
 api_v1_patterns = [
     path("", include("apps.common.urls")),  # health check
     path("auth/", include("apps.accounts.urls")),
+    path("tenants/", include("apps.tenants.urls")),
     path("config/", include("apps.storeconfig.urls")),
     path("catalog/", include("apps.catalog.urls")),
     path("currency/", include("apps.currency.urls")),
@@ -29,6 +30,7 @@ api_v1_patterns = [
 # Admin API namespace (role-gated to `admin`). Each domain contributes a router.
 api_v1_admin_patterns = [
     path("", include("apps.common.admin_urls")),  # audit log
+    path("", include("apps.tenants.admin_urls")),
     path("catalog/", include("apps.catalog.admin_urls")),
     path("inventory/", include("apps.inventory.admin_urls")),
     path("currency/", include("apps.currency.admin_urls")),

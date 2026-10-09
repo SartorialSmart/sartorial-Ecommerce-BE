@@ -1,5 +1,5 @@
 [Unit]
-Description=IdealCommerce Celery worker (nasuru-api)
+Description=SartorialEcommerce Celery worker (sartorial-Ecommerce-BE)
 After=network.target redis-server.service postgresql.service
 Wants=redis-server.service postgresql.service
 
@@ -7,10 +7,10 @@ Wants=redis-server.service postgresql.service
 Type=simple
 User=prime
 Group=www-data
-WorkingDirectory=/home/prime/nasuru-api
+WorkingDirectory=/home/prime/sartorial-Ecommerce-BE
 Environment=DJANGO_SETTINGS_MODULE=config.settings.prod
 # --concurrency=1 keeps memory tiny on a 512MB host; raise on a bigger box.
-ExecStart=/home/prime/nasuru-api/.venv/bin/celery -A config worker \
+ExecStart=/home/prime/sartorial-Ecommerce-BE/.venv/bin/celery -A config worker \
     --loglevel=info \
     --concurrency=1 \
     --max-tasks-per-child=100

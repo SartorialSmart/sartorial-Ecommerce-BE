@@ -13,6 +13,26 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from config.branding import (
+    API_DESCRIPTION,
+    API_TITLE,
+    API_VERSION,
+    CACHE_LOCAL_LOCATION,
+    DEFAULT_DB_NAME,
+    DEFAULT_DB_PASSWORD,
+    DEFAULT_DB_USER,
+    DEFAULT_UPLOAD_FOLDER,
+)
+from config.branding import (
+    DEFAULT_FROM_EMAIL as BRAND_DEFAULT_FROM_EMAIL,
+)
+from config.branding import (
+    DEFAULT_FROM_NAME as BRAND_DEFAULT_FROM_NAME,
+)
+from config.branding import (
+    DEFAULT_SUPPORT_EMAIL as BRAND_DEFAULT_SUPPORT_EMAIL,
+)
+
 # backend/config/settings/base.py -> backend/
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -64,10 +84,11 @@ THIRD_PARTY_APPS = [
     "cloudinary_storage",
 ]
 
-# Local domain apps. Phase 1 ships common + storeconfig; later phases append.
+# Local domain apps. Tenants (isolated stores) is core for SartorialEcommerce.
 LOCAL_APPS = [
     "apps.common",
     "apps.accounts",
+    "apps.tenants",
     "apps.storeconfig",
     "apps.catalog",
     "apps.inventory",
@@ -93,6 +114,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.tenants.middleware.TenantMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -183,9 +205,9 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("POSTGRES_DB", "idealcommerce"),
-            "USER": env("POSTGRES_USER", "idealcommerce"),
-            "PASSWORD": env("POSTGRES_PASSWORD", "idealcommerce"),
+            "NAME": env("POSTGRES_DB", DEFAULT_DB_NAME),
+            "USER": env("POSTGRES_USER", DEFAULT_DB_USER),
+            "PASSWORD": env("POSTGRES_PASSWORD", DEFAULT_DB_PASSWORD),
             "HOST": env("POSTGRES_HOST", "localhost"),
             "PORT": env("POSTGRES_PORT", "5432"),
             "CONN_MAX_AGE": DB_CONN_MAX_AGE,
@@ -237,9 +259,9 @@ REST_FRAMEWORK: dict[str, Any] = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "IdealCommerce API",
-    "DESCRIPTION": "Modular e-commerce + dropshipping platform.",
-    "VERSION": "0.1.0",
+    "TITLE": API_TITLE,
+    "DESCRIPTION": API_DESCRIPTION,
+    "VERSION": API_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",
 }
@@ -261,7 +283,7 @@ SIMPLE_JWT = {
 
 # Frontend base URL used to build password-reset links in emails.
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:3000")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@idealcommerce.test")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", BRAND_DEFAULT_FROM_EMAIL)
 
 # --- Redis ------------------------------------------------------------------
 # Redis is optional. On a VM deploy it backs the cache and the Celery broker;
@@ -332,7 +354,7 @@ else:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "idealcommerce-local",
+            "LOCATION": CACHE_LOCAL_LOCATION,
         }
     }
 
@@ -347,6 +369,17 @@ elif REDIS_URL:
     CACHE_SETTINGS_TIMEOUT = None
 else:
     CACHE_SETTINGS_TIMEOUT = 30
+
+# --- Multi-tenancy (SartorialEcommerce) --------------------------------------
+# Isolated stores on a shared DB, scoped by tenant_id (see apps.tenants).
+# Resolution: X-Tenant-Slug header > ?tenant= query > domain match > fallback.
+TENANT_SLUG = env("TENANT_SLUG", "")
+
+# ERP publication link (Phase 4): the Sartorial ERP pushes products/stock and
+# receives orders back, authenticating per-tenant via TenantApiKey.
+SARTORIAL_ERP_BASE_URL = env("SARTORIAL_ERP_BASE_URL", "")
+SARTORIAL_ERP_API_KEY = env("SARTORIAL_ERP_API_KEY", "")
+TENANT_ERP_BUSINESS_ID = env("TENANT_ERP_BUSINESS_ID", "")
 
 # --- Scheduled jobs ----------------------------------------------------------
 # Shared secret guarding the HTTP cron entry point (apps/common/cron.py), used
@@ -426,7 +459,7 @@ CLOUDINARY_STORAGE = {
     "API_KEY": CLOUDINARY_API_KEY,
     "API_SECRET": CLOUDINARY_API_SECRET,
 }
-CLOUDINARY_UPLOAD_FOLDER = env("CLOUDINARY_UPLOAD_FOLDER", "idealcommerce/products")
+CLOUDINARY_UPLOAD_FOLDER = env("CLOUDINARY_UPLOAD_FOLDER", DEFAULT_UPLOAD_FOLDER)
 
 # Pluggable product-image backend. "cloudinary" hits the real account; "static"
 # serves generated SVGs from the storefront's /public folder (key-less local dev
@@ -492,11 +525,9 @@ ZEPTOMAIL_API_URL = env("ZEPTOMAIL_API_URL", "https://api.zeptomail.com/v1.1/ema
 ZEPTOMAIL_TOKEN = env("ZEPTOMAIL_TOKEN", "")
 
 # Sender identity + branding used in emails.
-EMAIL_FROM_ADDRESS = env(
-    "EMAIL_FROM_ADDRESS", env("DEFAULT_FROM_EMAIL", "no-reply@idealcommerce.test")
-)
-EMAIL_FROM_NAME = env("EMAIL_FROM_NAME", "IdealCommerce")
-SUPPORT_EMAIL = env("SUPPORT_EMAIL", "support@idealcommerce.test")
+EMAIL_FROM_ADDRESS = env("EMAIL_FROM_ADDRESS", env("DEFAULT_FROM_EMAIL", BRAND_DEFAULT_FROM_EMAIL))
+EMAIL_FROM_NAME = env("EMAIL_FROM_NAME", BRAND_DEFAULT_FROM_NAME)
+SUPPORT_EMAIL = env("SUPPORT_EMAIL", BRAND_DEFAULT_SUPPORT_EMAIL)
 EMAIL_LOGO_URL = env("EMAIL_LOGO_URL", f"{FRONTEND_BASE_URL.rstrip('/')}/logo.png")
 
 # Telegram bot. TELEGRAM_DEFAULT_CHAT_ID is the store-ops chat (new-order alerts).

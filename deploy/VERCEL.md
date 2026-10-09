@@ -145,7 +145,7 @@ carts would hold inventory for up to a day. If you move to Vercel Pro, restore
 the frequent schedules in `vercel.json` and delete the workflow.
 
 The workflow needs two repository secrets (Settings → Secrets → Actions):
-`API_BASE_URL` (e.g. `https://nasuru-api.vercel.app`, no trailing slash) and
+`API_BASE_URL` (e.g. `https://sartorialecommerce.vercel.app`, no trailing slash) and
 `CRON_SECRET` (matching the Vercel value). It can also be run on demand from the
 Actions tab via **Run workflow**, optionally naming specific jobs.
 

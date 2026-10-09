@@ -18,6 +18,22 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 
+from config.branding import (
+    DEFAULT_BASE_CURRENCY as _DEFAULT_BASE_CURRENCY,
+)
+from config.branding import (
+    DEFAULT_ENABLED_CURRENCIES as _DEFAULT_ENABLED_CURRENCIES,
+)
+from config.branding import (
+    DEFAULT_STORE_NAME as _DEFAULT_STORE_NAME,
+)
+from config.branding import (
+    DEFAULT_STORE_TAGLINE as _DEFAULT_STORE_TAGLINE,
+)
+from config.branding import (
+    DEFAULT_SUPPORT_EMAIL_SETTING as _DEFAULT_SUPPORT_EMAIL,
+)
+
 # Logical value types. Stored as JSON; coerced/validated on write.
 ValueType = str  # one of the constants below
 STRING = "string"
@@ -129,15 +145,19 @@ SETTINGS: dict[str, SettingSpec] = {
     spec.key: spec
     for spec in (
         # Store identity / branding
-        SettingSpec("store.name", "identity", STRING, "IdealCommerce", "Public store name."),
+        SettingSpec("store.name", "identity", STRING, _DEFAULT_STORE_NAME, "Public store name."),
         SettingSpec(
-            "store.tagline", "identity", STRING, "Shop the world.", "Short marketing tagline."
+            "store.tagline",
+            "identity",
+            STRING,
+            _DEFAULT_STORE_TAGLINE,
+            "Short marketing tagline.",
         ),
         SettingSpec(
             "store.support_email",
             "identity",
             STRING,
-            "support@idealcommerce.test",
+            _DEFAULT_SUPPORT_EMAIL,
             "Support contact email.",
         ),
         SettingSpec(
@@ -182,7 +202,7 @@ SETTINGS: dict[str, SettingSpec] = {
             "currency.base",
             "currency",
             STRING,
-            "USD",
+            _DEFAULT_BASE_CURRENCY,
             "Base currency all prices are stored in.",
             _currency_code,
         ),
@@ -190,7 +210,7 @@ SETTINGS: dict[str, SettingSpec] = {
             "currency.enabled",
             "currency",
             JSON,
-            ["USD", "EUR", "GBP"],
+            _DEFAULT_ENABLED_CURRENCIES,
             "Currencies shoppers may transact in.",
             _currency_list,
         ),

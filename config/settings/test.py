@@ -7,7 +7,9 @@ Postgres/Redis container.
 
 from __future__ import annotations
 
-from .dev import *  # noqa: F401,F403
+from config.branding import DEFAULT_UPLOAD_FOLDER as _DEFAULT_UPLOAD_FOLDER
+
+from .dev import *  # noqa: F401,F403,E402
 
 DATABASES = {
     "default": {
@@ -33,7 +35,7 @@ SECRET_KEY = "test-secret-key-long-enough-for-hmac-sha256-signing-000000"
 CATALOG_IMAGE_BACKEND = "mock"
 # Pinned so the suite doesn't depend on whatever folder a developer happens to
 # have in their local .env — base.py loads it, and tests assert on this prefix.
-CLOUDINARY_UPLOAD_FOLDER = "idealcommerce/products"
+CLOUDINARY_UPLOAD_FOLDER = _DEFAULT_UPLOAD_FOLDER
 
 # In-memory notification channels — never hit ZeptoMail/Telegram from tests.
 NOTIFICATIONS_EMAIL_BACKEND = "memory"

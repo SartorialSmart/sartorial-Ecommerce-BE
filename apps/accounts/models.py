@@ -21,6 +21,10 @@ class Role(models.TextChoices):
     CUSTOMER = "customer", _("Customer")
     ADMIN = "admin", _("Admin")
     SUPPLIER = "supplier", _("Supplier")
+    # Store operator in the multi-tenant model: owns/manages one tenant store.
+    # Distinct from SUPPLIER (dropship source); a seller may also be an ERP
+    # subscriber whose catalogue is published from the ERP (source of truth).
+    SELLER = "seller", _("Seller")
 
 
 class UserManager(BaseUserManager["User"]):
@@ -85,6 +89,10 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDModel, TimeStampedModel):
     @property
     def is_supplier(self) -> bool:
         return self.role == Role.SUPPLIER
+
+    @property
+    def is_seller(self) -> bool:
+        return self.role == Role.SELLER
 
     @property
     def is_customer(self) -> bool:

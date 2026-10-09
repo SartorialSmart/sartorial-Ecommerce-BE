@@ -6,8 +6,46 @@ on:
       - main
 
 jobs:
+  # Safety rail (Phase 1): the same gates as CI must pass before any deploy.
+  # Branch protection requiring `CI — tests, lint, checks` is the primary guard;
+  # this in-workflow gate is the backstop for direct pushes to main.
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies (incl. dev tools)
+        run: uv sync --frozen
+
+      - name: Django checks + migration drift
+        run: |
+          uv run python manage.py check
+          uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+
+      - name: Run test suite
+        run: uv run pytest
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run black --check .
+
   deploy:
     runs-on: ubuntu-latest
+    needs: gate
 
     steps:
       - name: Checkout code
@@ -20,7 +58,7 @@ jobs:
           username: prime
           key: ${{ secrets.SSH_KEY }}
           source: "."
-          target: "~/nasuru-api"
+          target: "~/sartorial-Ecommerce-BE"
           # Don't clobber the server-only .env (it isn't in the repo anyway).
           overwrite: true
 
@@ -34,5 +72,5 @@ jobs:
           # migrates, collects static and restarts the services. Keeping the
           # logic in one tested script avoids settings-module drift here.
           script: |
-            cd ~/nasuru-api && bash deploy/deploy.sh
+            cd ~/sartorial-Ecommerce-BE && bash deploy/deploy.sh
 

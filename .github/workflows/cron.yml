@@ -5,7 +5,7 @@ name: Scheduled jobs
 # reservations, whose TTL is 30 minutes. This workflow keeps the real cadence.
 #
 # Setup: add two repository secrets (Settings -> Secrets -> Actions):
-#   API_BASE_URL  e.g. https://nasuru-api.vercel.app   (no trailing slash)
+#   API_BASE_URL  e.g. https://sartorialecommerce.vercel.app   (no trailing slash)
 #   CRON_SECRET   the same value set in the Vercel project
 #
 # Note: GitHub's scheduler has a 5-minute minimum, runs on a best-effort basis

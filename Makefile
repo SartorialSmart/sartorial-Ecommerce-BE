@@ -1,19 +1,21 @@
-# IdealCommerce backend — common commands.
+# SartorialEcommerce backend — common commands.
 #
 # Packages are managed with `uv` (https://docs.astral.sh/uv/). `uv run` executes
 # inside the project environment described by pyproject.toml + uv.lock, syncing
 # it on demand, so there's no separate "activate the venv" step.
 #
-# Quick local runs without Postgres/Redis use SQLite + inline Celery; override by
-# exporting USE_SQLITE=0 and pointing POSTGRES_*/REDIS_URL at real services.
+# The database comes from .env (USE_SQLITE / POSTGRES_*). With no .env at all the
+# defaults fall through to Postgres on localhost; export USE_SQLITE=1 for a
+# service-free SQLite run, and point REDIS_URL at a real server for a worker/beat
+# (unset => locmem cache + inline Celery).
 
 UV ?= uv
 RUN := $(UV) run
 MANAGE := $(RUN) python manage.py
 
-# Sensible defaults for `make run`/`make migrate` on a laptop with no services.
-export USE_SQLITE ?= 1
-export DJANGO_SECRET_KEY ?= local-dev-secret-key-change-me
+# Defaults only when .env doesn't supply them — never shadow a checked-out .env,
+# otherwise `make run` and `uv run manage.py ...` would disagree on the DB and
+# the JWT signing key.
 export DJANGO_SETTINGS_MODULE ?= config.settings.dev
 
 .DEFAULT_GOAL := help

@@ -1,5 +1,5 @@
 [Unit]
-Description=IdealCommerce API (gunicorn / nasuru-api)
+Description=SartorialEcommerce API (gunicorn / sartorial-Ecommerce-BE)
 After=network.target postgresql.service redis-server.service
 Wants=postgresql.service redis-server.service
 
@@ -7,23 +7,23 @@ Wants=postgresql.service redis-server.service
 Type=notify
 User=prime
 Group=www-data
-WorkingDirectory=/home/prime/nasuru-api
+WorkingDirectory=/home/prime/sartorial-Ecommerce-BE
 # Settings come from config.settings.prod; the rest of the env is loaded from
 # the project .env by python-dotenv (see config/settings/base.py).
 Environment=DJANGO_SETTINGS_MODULE=config.settings.prod
-# Socket lives in /run/nasuru-api (created by systemd, owned prime:www-data).
-RuntimeDirectory=nasuru-api
+# Socket lives in /run/sartorialecommerce (created by systemd, owned prime:www-data).
+RuntimeDirectory=sartorialecommerce
 RuntimeDirectoryMode=0750
 # Tuned for a small (512MB) host: 2 threaded workers keep memory low while
 # still handling concurrent I/O-bound requests. Bump --workers on a bigger box.
-ExecStart=/home/prime/nasuru-api/.venv/bin/gunicorn config.wsgi:application \
-    --name nasuru-api \
+ExecStart=/home/prime/sartorial-Ecommerce-BE/.venv/bin/gunicorn config.wsgi:application \
+    --name sartorialecommerce \
     --worker-class gthread \
     --workers 2 \
     --threads 4 \
     --timeout 60 \
     --umask 007 \
-    --bind unix:/run/nasuru-api/gunicorn.sock \
+    --bind unix:/run/sartorialecommerce/gunicorn.sock \
     --access-logfile - \
     --error-logfile -
 ExecReload=/bin/kill -s HUP $MAINPID

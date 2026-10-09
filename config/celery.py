@@ -8,7 +8,9 @@ from celery import Celery
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
 
-app = Celery("idealcommerce")
+from config.branding import CELERY_APP_NAME
+
+app = Celery(CELERY_APP_NAME)
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
