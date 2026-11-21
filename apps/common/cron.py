@@ -41,6 +41,7 @@ def _jobs() -> dict[str, Callable[[], Any]]:
     recognisably the same set of work.
     """
     from apps.currency.tasks import refresh_exchange_rates
+    from apps.erp_link.tasks import reconcile_erp_inventory, retry_erp_webhooks
     from apps.fulfillment.tasks import poll_supplier_orders
     from apps.inventory.tasks import release_expired_reservations
     from apps.suppliers.tasks import sync_all_suppliers
@@ -50,6 +51,8 @@ def _jobs() -> dict[str, Callable[[], Any]]:
         "poll-supplier-orders": poll_supplier_orders,
         "refresh-exchange-rates": refresh_exchange_rates,
         "sync-suppliers": sync_all_suppliers,
+        "reconcile-erp-inventory": reconcile_erp_inventory,
+        "retry-erp-webhooks": retry_erp_webhooks,
     }
 
 

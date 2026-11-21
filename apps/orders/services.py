@@ -267,4 +267,8 @@ def checkout(
 
     cart.status = Cart.Status.ORDERED
     cart.save(update_fields=["status", "updated_at"])
+
+    from apps.erp_link.services import queue_order_created
+
+    transaction.on_commit(lambda: queue_order_created(order_id=str(order.id)))
     return order

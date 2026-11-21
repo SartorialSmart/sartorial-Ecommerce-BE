@@ -16,6 +16,7 @@ from .models import (
     ProductReview,
     Variant,
 )
+from .serializers import ProductImageSerializer
 
 
 class ProductReviewAdminSerializer(serializers.ModelSerializer):
@@ -47,7 +48,22 @@ class ProductReviewAdminSerializer(serializers.ModelSerializer):
         )
 
 
-class CategoryAdminSerializer(serializers.ModelSerializer):
+class _SellerScopedWrite:
+    """Reject writes that point at a record in a store the seller doesn't own.
+
+    Field-level ``validate_<name>`` hooks call this for every store-owned
+    relation on the write path; no-op when there is no request context.
+    """
+
+    def _check_store(self, obj):  # type: ignore[no-untyped-def]
+        from apps.tenants.services import assert_tenant_writable
+
+        request = self.context.get("request")  # type: ignore[attr-defined]
+        assert_tenant_writable(request, getattr(obj, "tenant", None))
+        return obj
+
+
+class CategoryAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = (
@@ -69,6 +85,9 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
             from django.utils.text import slugify
 
             attrs["slug"] = slugify(attrs["name"])
+        parent = attrs.get("parent")
+        if parent is not None:
+            self._check_store(parent)
         return attrs
 
 
@@ -86,7 +105,7 @@ class BrandAdminSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ProductAdminSerializer(serializers.ModelSerializer):
+class ProductAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
     primary_image = serializers.SerializerMethodField()
     variant_count = serializers.SerializerMethodField()
     price_from = serializers.SerializerMethodField()
@@ -129,6 +148,16 @@ class ProductAdminSerializer(serializers.ModelSerializer):
             "features": {"required": False},
         }
 
+    def validate_category(self, category):  # type: ignore[no-untyped-def]
+        if category is not None:
+            self._check_store(category)
+        return category
+
+    def validate_brand(self, brand):  # type: ignore[no-untyped-def]
+        if brand is not None:
+            self._check_store(brand)
+        return brand
+
     def get_primary_image(self, obj: Product) -> str | None:
         from .images import image_urls
 
@@ -144,19 +173,25 @@ class ProductAdminSerializer(serializers.ModelSerializer):
         return str(min(prices)) if prices else None
 
 
-class OptionTypeAdminSerializer(serializers.ModelSerializer):
+class OptionTypeAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
     class Meta:
         model = OptionType
         fields = ("id", "product", "name", "position")
 
+    def validate_product(self, product):  # type: ignore[no-untyped-def]
+        return self._check_store(product)
 
-class OptionValueAdminSerializer(serializers.ModelSerializer):
+
+class OptionValueAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
     class Meta:
         model = OptionValue
         fields = ("id", "option_type", "value", "position")
 
+    def validate_option_type(self, option_type):  # type: ignore[no-untyped-def]
+        return self._check_store(option_type.product)
 
-class VariantAdminSerializer(serializers.ModelSerializer):
+
+class VariantAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
     # Optional: set the variant's option-value combination on write.
     option_value_ids = serializers.ListField(
         child=serializers.IntegerField(), required=False, write_only=True
@@ -188,6 +223,9 @@ class VariantAdminSerializer(serializers.ModelSerializer):
             "moq": {"required": False},
             "price_tiers": {"required": False},
         }
+
+    def validate_product(self, product):  # type: ignore[no-untyped-def]
+        return self._check_store(product)
 
     def get_options(self, obj: Variant) -> list[dict]:
         """Per-variant option values, ordered by option-type position."""
@@ -256,7 +294,14 @@ class VariantAdminSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ProductImageCreateSerializer(serializers.Serializer):
+class ProductImageAdminSerializer(_SellerScopedWrite, ProductImageSerializer):
+    def validate_variant(self, variant):  # type: ignore[no-untyped-def]
+        if variant is not None:
+            self._check_store(variant.product)
+        return variant
+
+
+class ProductImageCreateSerializer(_SellerScopedWrite, serializers.Serializer):
     """Create an image record from an already-uploaded Cloudinary public_id."""
 
     public_id = serializers.CharField()
@@ -266,6 +311,11 @@ class ProductImageCreateSerializer(serializers.Serializer):
     alt_text = serializers.CharField(required=False, allow_blank=True, default="")
     position = serializers.IntegerField(required=False, default=0)
     is_primary = serializers.BooleanField(required=False, default=False)
+
+    def validate_variant(self, variant):  # type: ignore[no-untyped-def]
+        if variant is not None:
+            self._check_store(variant.product)
+        return variant
 
 
 class GenerateVariantsSerializer(serializers.Serializer):

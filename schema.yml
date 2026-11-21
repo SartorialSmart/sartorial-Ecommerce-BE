@@ -1145,7 +1145,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedProductImageList'
+                $ref: '#/components/schemas/PaginatedProductImageAdminList'
           description: ''
     post:
       operationId: admin_catalog_images_create
@@ -1157,13 +1157,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductImage'
+              $ref: '#/components/schemas/ProductImageAdmin'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ProductImage'
+              $ref: '#/components/schemas/ProductImageAdmin'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ProductImage'
+              $ref: '#/components/schemas/ProductImageAdmin'
       security:
       - jwtAuth: []
       - cookieAuth: []
@@ -1172,7 +1172,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductImage'
+                $ref: '#/components/schemas/ProductImageAdmin'
           description: ''
   /api/v1/admin/catalog/images/{id}/:
     get:
@@ -1197,7 +1197,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductImage'
+                $ref: '#/components/schemas/ProductImageAdmin'
           description: ''
     patch:
       operationId: admin_catalog_images_partial_update
@@ -1217,13 +1217,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedProductImage'
+              $ref: '#/components/schemas/PatchedProductImageAdmin'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedProductImage'
+              $ref: '#/components/schemas/PatchedProductImageAdmin'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedProductImage'
+              $ref: '#/components/schemas/PatchedProductImageAdmin'
       security:
       - jwtAuth: []
       - cookieAuth: []
@@ -1232,7 +1232,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductImage'
+                $ref: '#/components/schemas/ProductImageAdmin'
           description: ''
     delete:
       operationId: admin_catalog_images_destroy
@@ -1273,13 +1273,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductImage'
+              $ref: '#/components/schemas/ProductImageAdmin'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ProductImage'
+              $ref: '#/components/schemas/ProductImageAdmin'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ProductImage'
+              $ref: '#/components/schemas/ProductImageAdmin'
       security:
       - jwtAuth: []
       - cookieAuth: []
@@ -1288,7 +1288,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductImage'
+                $ref: '#/components/schemas/ProductImageAdmin'
           description: ''
   /api/v1/admin/catalog/option-types/:
     get:
@@ -1949,7 +1949,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductImage'
+                $ref: '#/components/schemas/ProductImageAdmin'
           description: ''
   /api/v1/admin/catalog/products/create-full/:
     post:
@@ -2757,7 +2757,8 @@ paths:
   /api/v1/admin/my-stores/:
     get:
       operationId: admin_my_stores_list
-      description: Stores the requesting user belongs to.
+      description: Stores the requesting user belongs to (all stores for platform
+        admins).
       parameters:
       - name: ordering
         required: false
@@ -2798,7 +2799,8 @@ paths:
   /api/v1/admin/my-stores/{id}/:
     get:
       operationId: admin_my_stores_retrieve
-      description: Stores the requesting user belongs to.
+      description: Stores the requesting user belongs to (all stores for platform
+        admins).
       parameters:
       - in: path
         name: id
@@ -5324,6 +5326,77 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/erp/catalog/sync/:
+    post:
+      operationId: erp_catalog_sync_create
+      description: Upsert one ERP product (with variants) into the calling store.
+      summary: Upsert an ERP product and its variants
+      tags:
+      - ERP integration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErpProductSync'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ErpProductSync'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ErpProductSync'
+        required: true
+      security:
+      - TenantApiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErpProductSync'
+          description: ''
+  /api/v1/erp/inventory/:
+    get:
+      operationId: erp_inventory_retrieve
+      description: 'Set on-hand stock for ERP-linked variants (source of truth: ERP).'
+      summary: Current stock snapshot (for reconciliation)
+      tags:
+      - ERP integration
+      security:
+      - TenantApiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErpStockSync'
+          description: ''
+    post:
+      operationId: erp_inventory_create
+      description: 'Set on-hand stock for ERP-linked variants (source of truth: ERP).'
+      summary: Set on-hand stock for one or more SKUs
+      tags:
+      - ERP integration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErpStockSync'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ErpStockSync'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ErpStockSync'
+        required: true
+      security:
+      - TenantApiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErpStockSync'
+          description: ''
   /api/v1/health/:
     get:
       operationId: health_retrieve
@@ -6006,6 +6079,11 @@ components:
       - slug
     CategoryAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: integer
@@ -6204,6 +6282,128 @@ components:
           type: string
       required:
       - token
+    ErpOption:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 60
+        value:
+          type: string
+          maxLength: 120
+      required:
+      - name
+      - value
+    ErpProductSync:
+      type: object
+      description: One ERP product pushed to the marketplace (upsert semantics).
+      properties:
+        erp_product_id:
+          type: string
+          maxLength: 64
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          default: ''
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ErpProductSyncStatusEnum'
+          default: published
+        category_name:
+          type: string
+          maxLength: 120
+        brand_name:
+          type: string
+          maxLength: 120
+        is_featured:
+          type: boolean
+          default: false
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErpVariant'
+      required:
+      - erp_product_id
+      - title
+      - variants
+    ErpProductSyncStatusEnum:
+      enum:
+      - draft
+      - published
+      - archived
+      type: string
+      description: |-
+        * `draft` - draft
+        * `published` - published
+        * `archived` - archived
+    ErpStockItem:
+      type: object
+      properties:
+        sku:
+          type: string
+          maxLength: 64
+        quantity:
+          type: integer
+          minimum: 0
+      required:
+      - quantity
+      - sku
+    ErpStockSync:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErpStockItem'
+      required:
+      - items
+    ErpVariant:
+      type: object
+      properties:
+        erp_variant_id:
+          type: string
+          maxLength: 64
+        sku:
+          type: string
+          maxLength: 64
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        compare_at_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        cost_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        moq:
+          type: integer
+          minimum: 1
+          default: 1
+        barcode:
+          type: string
+          default: ''
+          maxLength: 64
+        weight_grams:
+          type: integer
+          minimum: 0
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErpOption'
+      required:
+      - erp_variant_id
+      - price
+      - sku
     FulfillmentTypeA13Enum:
       enum:
       - internal
@@ -6264,6 +6464,11 @@ components:
       - values
     OptionTypeAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: integer
@@ -6300,6 +6505,11 @@ components:
       - value
     OptionValueAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: integer
@@ -6965,7 +7175,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductAdmin'
-    PaginatedProductImageList:
+    PaginatedProductImageAdminList:
       type: object
       required:
       - count
@@ -6987,7 +7197,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/ProductImage'
+            $ref: '#/components/schemas/ProductImageAdmin'
     PaginatedProductListList:
       type: object
       required:
@@ -7434,6 +7644,11 @@ components:
           additionalProperties: {}
     PatchedCategoryAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: integer
@@ -7537,6 +7752,11 @@ components:
           minimum: 0
     PatchedOptionTypeAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: integer
@@ -7553,6 +7773,11 @@ components:
           minimum: 0
     PatchedOptionValueAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: integer
@@ -7583,6 +7808,11 @@ components:
           type: string
     PatchedProductAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: string
@@ -7640,8 +7870,13 @@ components:
         rating_count:
           type: integer
           readOnly: true
-    PatchedProductImage:
+    PatchedProductImageAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: string
@@ -7841,6 +8076,11 @@ components:
           minimum: 0
     PatchedVariantAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: string
@@ -7917,6 +8157,11 @@ components:
           type: boolean
     ProductAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: string
@@ -8156,6 +8401,39 @@ components:
       - variants
     ProductImage:
       type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        alt_text:
+          type: string
+          maxLength: 255
+        position:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        is_primary:
+          type: boolean
+        variant:
+          type: string
+          format: uuid
+          nullable: true
+        urls:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+      required:
+      - id
+      - urls
+    ProductImageAdmin:
+      type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: string
@@ -8985,6 +9263,11 @@ components:
       - sku
     VariantAdmin:
       type: object
+      description: |-
+        Reject writes that point at a record in a store the seller doesn't own.
+
+        Field-level ``validate_<name>`` hooks call this for every store-owned
+        relation on the write path; no-op when there is no request context.
       properties:
         id:
           type: string
@@ -9084,6 +9367,12 @@ components:
       - name
       - values
   securitySchemes:
+    TenantApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Service key (sk_…)
+      description: 'Per-tenant machine-to-machine key issued by a platform admin (/api/v1/admin/tenant-keys/).
+        Send as ''Authorization: Bearer sk_…'' or ''X-Api-Key: sk_…''.'
     cookieAuth:
       type: apiKey
       in: cookie

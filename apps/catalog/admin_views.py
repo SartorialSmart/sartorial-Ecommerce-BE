@@ -1,4 +1,4 @@
-"""Admin catalog management API (role: admin), mounted under /api/v1/admin/catalog/."""
+"""Admin catalog management API (admins and sellers); sellers are restricted to their own store."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAdminRole
+from apps.accounts.permissions import IsAdminOrSellerRole
 from apps.common.audit import record_audit
 from apps.common.audit_mixins import AuditedModelViewSet
 from apps.common.models import AuditLog
@@ -25,6 +25,7 @@ from .admin_serializers import (
     OptionValueAdminSerializer,
     ProductAdminSerializer,
     ProductCreateSerializer,
+    ProductImageAdminSerializer,
     ProductImageCreateSerializer,
     ProductReviewAdminSerializer,
     UploadSignatureSerializer,
@@ -40,11 +41,11 @@ from .models import (
     ProductReview,
     Variant,
 )
-from .serializers import ProductImageSerializer, VariantSerializer
+from .serializers import VariantSerializer
 
 
 class _AdminModelViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrSellerRole]
 
 
 class CategoryAdminViewSet(_AdminModelViewSet):
@@ -97,16 +98,16 @@ class ProductImageAdminViewSet(_AdminModelViewSet):
 
     tenant_filter = "product__tenant"
     queryset = ProductImage.objects.all()
-    serializer_class = ProductImageSerializer
+    serializer_class = ProductImageAdminSerializer
     filterset_fields = ["product", "variant"]
     http_method_names = ["get", "delete", "patch", "post"]
 
-    @extend_schema(responses={200: ProductImageSerializer}, tags=["catalog-admin"])
+    @extend_schema(responses={200: ProductImageAdminSerializer}, tags=["catalog-admin"])
     @action(detail=True, methods=["post"], url_path="make-primary")
     def make_primary(self, request: Request, pk: str | None = None) -> Response:
         image = self.get_object()
         services.set_primary_image(image)
-        return Response(ProductImageSerializer(image).data)
+        return Response(ProductImageAdminSerializer(image).data)
 
 
 class ProductAdminViewSet(_AdminModelViewSet):
@@ -123,13 +124,13 @@ class ProductAdminViewSet(_AdminModelViewSet):
     @action(detail=False, methods=["post"], url_path="create-full")
     def create_full(self, request: Request) -> Response:
         """Create a whole product (details + image + variants + stock) atomically."""
-        from apps.tenants.services import get_effective_tenant
+        from apps.tenants.services import get_effective_tenant, resolve_write_tenant
 
         serializer = ProductCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         d = serializer.validated_data
         product = services.create_product_full(
-            tenant=get_effective_tenant(request),
+            tenant=resolve_write_tenant(request) or get_effective_tenant(request),
             title=d["title"],
             description=d.get("description", ""),
             category_id=d.get("category"),
@@ -183,13 +184,15 @@ class ProductAdminViewSet(_AdminModelViewSet):
 
     @extend_schema(
         request=ProductImageCreateSerializer,
-        responses={201: ProductImageSerializer},
+        responses={201: ProductImageAdminSerializer},
         tags=["catalog-admin"],
     )
     @action(detail=True, methods=["post"], url_path="images")
     def add_image(self, request: Request, pk: str | None = None) -> Response:
         product = self.get_object()
-        serializer = ProductImageCreateSerializer(data=request.data)
+        serializer = ProductImageCreateSerializer(
+            data=request.data, context=self.get_serializer_context()
+        )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         image = services.add_product_image(
@@ -200,7 +203,7 @@ class ProductAdminViewSet(_AdminModelViewSet):
             position=data.get("position", 0),
             is_primary=data.get("is_primary", False),
         )
-        return Response(ProductImageSerializer(image).data, status=status.HTTP_201_CREATED)
+        return Response(ProductImageAdminSerializer(image).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=UploadSignatureSerializer, responses={200: dict}, tags=["catalog-admin"])
     @action(detail=False, methods=["post"], url_path="upload-signature")
@@ -212,7 +215,7 @@ class ProductAdminViewSet(_AdminModelViewSet):
 class ProductReviewAdminViewSet(TenantScopedAdminMixin, AuditedModelViewSet):
     """Moderate customer reviews: list, hide/show (status) or delete."""
 
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrSellerRole]
     tenant_filter = "product__tenant"
     queryset = ProductReview.objects.select_related("product").all()
     serializer_class = ProductReviewAdminSerializer

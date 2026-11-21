@@ -84,12 +84,20 @@ def _apply_succeeded(payment: Payment) -> None:
             payer_email=payment.payer_email,
             payer_name=payment.payer_name,
         )
+    from apps.erp_link.services import queue_payment_result
+
+    transaction.on_commit(lambda: queue_payment_result(payment_id=str(payment.id), succeeded=True))
 
 
 def _apply_failed(payment: Payment) -> None:
     if payment.status not in (Payment.Status.SUCCEEDED, Payment.Status.REFUNDED):
         payment.status = Payment.Status.FAILED
         payment.save(update_fields=["status", "updated_at"])
+        from apps.erp_link.services import queue_payment_result
+
+        transaction.on_commit(
+            lambda: queue_payment_result(payment_id=str(payment.id), succeeded=False)
+        )
 
 
 def _confirm_with_gateway(provider: Any, payment: Payment, event: dict[str, Any]) -> bool:

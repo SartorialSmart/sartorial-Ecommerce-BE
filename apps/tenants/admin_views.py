@@ -12,7 +12,7 @@ from apps.accounts.permissions import IsAdminRole
 
 from . import services
 from .models import Tenant, TenantApiKey, TenantMembership
-from .permissions import IsPlatformAdmin, IsTenantMember
+from .permissions import IsPlatformAdmin
 from .serializers import (
     TenantApiKeyCreateSerializer,
     TenantApiKeySerializer,
@@ -78,10 +78,10 @@ class TenantApiKeyAdminViewSet(viewsets.ModelViewSet):
 
 
 class MyTenantsViewSet(viewsets.ReadOnlyModelViewSet):
-    """Stores the requesting user belongs to."""
+    """Stores the requesting user belongs to (all stores for platform admins)."""
 
     serializer_class = TenantSerializer
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated]
     queryset = Tenant.objects.none()
 
     def get_queryset(self):  # type: ignore[override]
@@ -90,7 +90,4 @@ class MyTenantsViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         if getattr(user, "role", "") == "admin":
             return Tenant.objects.all().order_by("name")
-        tenant = getattr(self.request, "tenant", None)
-        if tenant is not None:
-            return Tenant.objects.filter(id=tenant.id)
         return Tenant.objects.filter(memberships__user=user).distinct().order_by("name")

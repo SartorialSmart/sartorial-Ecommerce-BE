@@ -29,6 +29,14 @@ class IsAdminRole(_RolePermission):
     role = Role.ADMIN
 
 
+class IsAdminOrSellerRole(BasePermission):
+    """Platform admins or store sellers. Sellers must be tenant-scoped by the view."""
+
+    def has_permission(self, request: Request, view: Any) -> bool:
+        user = request.user
+        return bool(user and user.is_authenticated and user.role in {Role.ADMIN, Role.SELLER})
+
+
 class IsSupplier(_RolePermission):
     role = Role.SUPPLIER
 

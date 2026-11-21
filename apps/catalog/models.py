@@ -82,6 +82,10 @@ class Brand(TenantScopedModel, TimeStampedModel):
 class Product(TenantScopedModel, BaseModel):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=280)
+    # Identity of this product in the Sartorial ERP (WebProduct UUID). Set for
+    # ERP-published products; NULL for native catalogue entries. Unique so a
+    # re-publish updates in place instead of duplicating.
+    erp_product_id = models.CharField(max_length=64, null=True, blank=True, unique=True)
     # Public, unguessable share handle. The canonical share URL is /p/<short_id>.
     short_id = models.CharField(
         max_length=16, unique=True, default=_generate_short_id, editable=False
@@ -197,6 +201,8 @@ class Variant(BaseModel):
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     sku = models.CharField(max_length=64, unique=True)
+    # Identity of this variant in the Sartorial ERP (WebVariant UUID).
+    erp_variant_id = models.CharField(max_length=64, null=True, blank=True, unique=True)
     # Base-currency price; the currency module converts for display/checkout.
     price = models.DecimalField(max_digits=12, decimal_places=2)
     # What we pay the supplier (base currency). For dropship variants this is set

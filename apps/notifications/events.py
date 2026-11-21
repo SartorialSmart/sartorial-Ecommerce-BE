@@ -25,6 +25,7 @@ PAYMENT_RECEIVED = "payment_received"
 SHIPMENT_UPDATE = "shipment_update"
 OPS_NEW_ORDER = "ops_new_order"
 ORDER_INQUIRY = "order_inquiry"
+OPS_ERP_RECONCILIATION = "ops_erp_reconciliation"
 
 EVENTS: dict[str, dict[str, str]] = {
     WELCOME: {"subject": "Welcome to {store_name}"},
@@ -36,6 +37,7 @@ EVENTS: dict[str, dict[str, str]] = {
     SHIPMENT_UPDATE: {"subject": "{store_name}: order {order_number} has shipped"},
     OPS_NEW_ORDER: {"subject": "New paid order {order_number}"},
     ORDER_INQUIRY: {"subject": "New chat order inquiry"},
+    OPS_ERP_RECONCILIATION: {"subject": "{message}"},
 }
 
 

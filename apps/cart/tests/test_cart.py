@@ -104,3 +104,38 @@ def test_add_inactive_variant_rejected(currencies: None) -> None:
     v.save(update_fields=["is_active"])
     with pytest.raises(DomainError):
         services.add_item(cart, variant_id=str(v.id), quantity=1)
+
+
+@pytest.mark.django_db
+def test_add_item_with_archived_product_rejected(currencies: None) -> None:
+    cart = _guest_cart()
+    v = make_variant("10.00")
+    v.product.is_active = False
+    v.product.save(update_fields=["is_active"])
+    with pytest.raises(DomainError):
+        services.add_item(cart, variant_id=str(v.id), quantity=1)
+
+
+@pytest.mark.django_db
+def test_validate_cart_flags_archived_product(currencies: None) -> None:
+    cart = _guest_cart()
+    v = make_variant("10.00", stock=10)
+    services.add_item(cart, variant_id=str(v.id), quantity=1)
+    v.product.is_active = False  # ERP archived the product mid-basket
+    v.product.save(update_fields=["is_active"])
+    issues = selectors.validate_cart(cart)
+    assert any(i["code"] == "inactive" for i in issues)
+
+
+@pytest.mark.django_db
+def test_checkout_blocked_when_product_archived_mid_basket(currencies: None) -> None:
+    from apps.orders import services as order_services
+
+    cart = _guest_cart()
+    v = make_variant("10.00", stock=10)
+    services.add_item(cart, variant_id=str(v.id), quantity=1)
+    services.set_shipping(cart, {"name": "A", "line1": "1 St", "city": "T", "country": "US"})
+    v.product.is_active = False
+    v.product.save(update_fields=["is_active"])
+    with pytest.raises(DomainError, match="unavailable|invalid"):
+        order_services.checkout(cart, idempotency_key="archived-1", currency="USD")

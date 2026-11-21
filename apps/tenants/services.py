@@ -96,6 +96,72 @@ def get_effective_tenant(request: Any | None) -> Tenant | None:
     return Tenant.objects.filter(slug="default").first()
 
 
+def resolve_write_tenant(request: Any) -> Tenant | None:
+    """Tenant a write should target, enforcing store membership.
+
+    Platform admins keep legacy behaviour: the request-resolved tenant, or
+    ``None`` (callers backfill the ``default`` store). Sellers must target a
+    store they belong to: the request-resolved tenant when set, otherwise their
+    only store. Raises a DRF ``PermissionDenied`` (403) or ``ValidationError``
+    (400) instead of falling back, so a seller can never write into — or be
+    silently assigned — a store they don't own.
+    """
+    from rest_framework.exceptions import PermissionDenied, ValidationError
+
+    user = getattr(request, "user", None)
+    requested = getattr(request, "tenant", None)
+    if requested is None:
+        params = getattr(request, "query_params", {}) or {}
+        data = getattr(request, "data", {})
+        slug = (
+            params.get("tenant")
+            or (data.get("tenant") if hasattr(data, "get") else None)
+            or (data.get("tenant_slug") if hasattr(data, "get") else None)
+        )
+        if slug:
+            requested = Tenant.objects.filter(slug=str(slug).strip().lower()).first()
+    if getattr(user, "role", None) == "admin":
+        return requested
+    if not (user and getattr(user, "is_authenticated", False)):
+        raise PermissionDenied("Authentication required.")
+    memberships = list(user.tenants.all())
+    if requested is not None:
+        if any(member.id == requested.id for member in memberships):
+            return requested
+        raise PermissionDenied("You are not a member of that store.")
+    if len(memberships) == 1:
+        return memberships[0]
+    if not memberships:
+        raise PermissionDenied("Your account is not linked to a store yet.")
+    raise ValidationError("This account manages multiple stores; pass X-Tenant-Slug.")
+
+
+def assert_tenant_writable(request: Any, tenant: Any | None) -> None:
+    """Raise unless the requester may write to ``tenant``.
+
+    Platform admins may write anywhere. Everyone else must belong to the
+    store; a NULL-tenant (legacy/global) record is admin-only. No-op when
+    there is no request (internal/service-layer calls) — the HTTP permission
+    layer has already gated those paths.
+    """
+    from rest_framework.exceptions import PermissionDenied
+
+    if request is None:
+        return
+    user = getattr(request, "user", None)
+    if getattr(user, "role", None) == "admin":
+        return
+    tenant_id = getattr(tenant, "id", tenant)
+    memberships = getattr(user, "tenants", None) if user is not None else None
+    if (
+        tenant_id is not None
+        and memberships is not None
+        and memberships.filter(id=tenant_id).exists()
+    ):
+        return
+    raise PermissionDenied("You are not a member of that store.")
+
+
 def tenant_filter(tenant: Any | None, path: str = "tenant") -> dict[str, Any]:
     """ORM filter scoping a queryset to one store.
 

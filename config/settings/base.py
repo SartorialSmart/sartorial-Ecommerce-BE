@@ -101,6 +101,8 @@ LOCAL_APPS = [
     "apps.fulfillment",
     "apps.notifications",
     "apps.blog",
+    "apps.erp_link",
+    "apps.pricing",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -314,6 +316,8 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
+from celery.schedules import crontab  # noqa: E402
+
 # Periodic tasks. The FX refresh cadence is admin-tunable (storeconfig
 # `currency.refresh_minutes`); this is the default schedule the worker starts with.
 CELERY_BEAT_SCHEDULE = {
@@ -332,6 +336,17 @@ CELERY_BEAT_SCHEDULE = {
     "sync-suppliers": {
         "task": "apps.suppliers.tasks.sync_all_suppliers",
         "schedule": 3600.0,
+    },
+    # ERP ↔ marketplace stock reconciliation, nightly 02:05 WAT (ERP runs its
+    # own at 02:00; offset so they don't stampede each other).
+    "reconcile-erp-inventory": {
+        "task": "apps.erp_link.tasks.reconcile_erp_inventory",
+        "schedule": crontab(hour=2, minute=5),
+    },
+    # Re-deliver any ERP webhooks whose retries are due (heals missed Celery retries).
+    "retry-erp-webhooks": {
+        "task": "apps.erp_link.tasks.retry_erp_webhooks",
+        "schedule": crontab(minute="*/5"),
     },
 }
 
@@ -380,6 +395,8 @@ TENANT_SLUG = env("TENANT_SLUG", "")
 SARTORIAL_ERP_BASE_URL = env("SARTORIAL_ERP_BASE_URL", "")
 SARTORIAL_ERP_API_KEY = env("SARTORIAL_ERP_API_KEY", "")
 TENANT_ERP_BUSINESS_ID = env("TENANT_ERP_BUSINESS_ID", "")
+# Timeout (seconds) for outbound calls to the ERP (webhook delivery, stock pull).
+SARTORIAL_ERP_TIMEOUT = int(env("SARTORIAL_ERP_TIMEOUT", "10") or "10")
 
 # --- Scheduled jobs ----------------------------------------------------------
 # Shared secret guarding the HTTP cron entry point (apps/common/cron.py), used

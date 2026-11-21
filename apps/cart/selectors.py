@@ -46,7 +46,7 @@ def validate_cart(cart: Cart) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
     for line in cart_lines(cart):
         variant = line.variant
-        if not variant.is_active:
+        if not variant.is_active or not variant.product.is_active:
             issues.append({"line": str(line.id), "sku": variant.sku, "code": "inactive"})
             continue
         available = variant_availability(variant)

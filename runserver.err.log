@@ -1,0 +1,7 @@
+Watching for file changes with StatReloader
+2026-11-15 18:28:05,740 INFO django.utils.autoreload Watching for file changes with StatReloader
+[15/Nov/2026 18:45:37] "GET /api/v1/schema/ HTTP/1.1" 404 7876
+[15/Nov/2026 18:45:37] "GET / HTTP/1.1" 404 2814
+[15/Nov/2026 18:45:50] "GET /api/v1/health/ HTTP/1.1" 200 81
+[15/Nov/2026 18:49:35] "GET / HTTP/1.1" 404 2810
+[15/Nov/2026 18:49:35] "GET /favicon.ico HTTP/1.1" 404 2861

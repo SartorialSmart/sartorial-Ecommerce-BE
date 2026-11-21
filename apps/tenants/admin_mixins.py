@@ -1,13 +1,14 @@
 """Reusable admin scoping for tenant-owned resources.
 
-v1 behaviour (platform-admin-only admin API; seller dashboard lands later):
+Admin API is open to platform admins and store sellers:
 
 * ``?tenant=<slug>`` filters the list to one store (all models via
   ``tenant_filter`` path, defaulting to a direct ``tenant`` FK).
 * Creates honour the request's tenant (``X-Tenant-Slug`` header or ``?tenant=``
   override); otherwise the model's ``save()`` backfills the default store.
-* Platform admins keep full cross-store access; non-admin sellers (when granted
-  admin access) are restricted to their own store(s).
+* Platform admins keep full cross-store access; sellers are restricted to the
+  stores they belong to — on both reads (``get_queryset``) and writes
+  (``perform_create`` / serializer store-ownership checks on parent relations).
 """
 
 from __future__ import annotations
@@ -64,7 +65,9 @@ class TenantScopedAdminMixin:
             f.name == "tenant" for f in model._meta.get_fields()
         )
         if has_tenant_field and not serializer.validated_data.get("tenant"):
-            requested = self._requested_tenant()
+            from .services import resolve_write_tenant
+
+            requested = resolve_write_tenant(self.request)
             if requested is not None:
                 serializer.save(tenant=requested)
                 return

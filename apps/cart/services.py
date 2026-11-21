@@ -43,7 +43,7 @@ def get_or_create_cart(*, user: Any = None, session_key: str = "", tenant: Any =
 
 
 def _active_variant(variant_id: str) -> Variant:
-    variant = Variant.objects.filter(id=variant_id, is_active=True).first()
+    variant = Variant.objects.filter(id=variant_id, is_active=True, product__is_active=True).first()
     if variant is None:
         raise DomainError("That product variant is unavailable.", code="variant_unavailable")
     return variant
