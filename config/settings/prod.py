@@ -84,7 +84,20 @@ CSRF_TRUSTED_ORIGINS += [f"https://{host}" for host in _vercel_hosts]
 if ON_VERCEL and env_bool("DJANGO_ALLOW_VERCEL_PREVIEWS", False):
     CSRF_TRUSTED_ORIGINS.append("https://*.vercel.app")
 # The storefront posts to this API with credentials, so its origin must be
-# trusted for CSRF on session-authenticated (admin/browsable API) requests.
+# trusted for CORS and CSRF. FRONTEND_BASE_URL is the canonical storefront URL;
+# include it even when CORS_ALLOWED_ORIGINS was left at its dev default.
+_frontend_base = (env("FRONTEND_BASE_URL", "") or "").rstrip("/")
+if _frontend_base.startswith("https://"):
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys([*CORS_ALLOWED_ORIGINS, _frontend_base]))
+if CORS_ALLOWED_ORIGINS == ["http://localhost:3000"]:
+    # Production deploy with no explicit CORS_ALLOWED_ORIGINS — allow the known
+    # Sartorial storefront so the API is reachable out of the box. Override via
+    # CORS_ALLOWED_ORIGINS env var for additional/custom origins.
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "https://ecommerce.sartorialsmart.com",
+    ]
+
 CSRF_TRUSTED_ORIGINS += [origin for origin in CORS_ALLOWED_ORIGINS if origin.startswith("https://")]
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 

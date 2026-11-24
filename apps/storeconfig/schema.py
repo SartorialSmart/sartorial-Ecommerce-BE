@@ -181,6 +181,61 @@ SETTINGS: dict[str, SettingSpec] = {
             "",
             "Direct store logo URL.",
         ),
+        SettingSpec("store.city", "identity", STRING, "", "Store city/location."),
+        SettingSpec("store.currency", "identity", STRING, "NGN", "Store display currency."),
+        SettingSpec("store.category", "identity", STRING, "", "Primary store category."),
+        SettingSpec("store.domain", "identity", STRING, "", "Storefront subdomain/handle."),
+        SettingSpec("store.plan", "identity", STRING, "ankara", "Selected pricing plan slug."),
+        SettingSpec(
+            "store.setup_complete",
+            "identity",
+            BOOLEAN,
+            False,
+            "Whether initial store setup is complete.",
+        ),
+        SettingSpec(
+            "storefront.template",
+            "storefront",
+            STRING,
+            "loom",
+            "Selected storefront template slug.",
+        ),
+        SettingSpec(
+            "storefront.accent",
+            "storefront",
+            STRING,
+            "oklch(0.535 0.205 27)",
+            "Storefront accent color.",
+        ),
+        SettingSpec(
+            "storefront.accent_fg",
+            "storefront",
+            STRING,
+            "oklch(0.985 0.005 85)",
+            "Storefront accent foreground color.",
+        ),
+        SettingSpec(
+            "storefront.font_display",
+            "storefront",
+            STRING,
+            '"Outfit", sans-serif',
+            "Storefront display font.",
+        ),
+        SettingSpec(
+            "storefront.hero_layout",
+            "storefront",
+            STRING,
+            "split",
+            "Storefront hero layout.",
+        ),
+        SettingSpec(
+            "storefront.show_announcement", "storefront", BOOLEAN, True, "Show announcement bar."
+        ),
+        SettingSpec("storefront.show_marquee", "storefront", BOOLEAN, True, "Show marquee."),
+        SettingSpec(
+            "storefront.show_testimonial", "storefront", BOOLEAN, True, "Show testimonial."
+        ),
+        SettingSpec("storefront.show_cta", "storefront", BOOLEAN, True, "Show mailing CTA."),
         SettingSpec(
             "branding.primary_color",
             "identity",

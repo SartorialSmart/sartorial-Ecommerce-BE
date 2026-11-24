@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAdminRole
+from apps.accounts.permissions import IsAdminOrSellerRole
 
 from . import selectors, services
 from .schema import PUBLIC_KEYS, SETTINGS
@@ -24,6 +24,12 @@ from .serializers import (
 )
 
 
+def _current_tenant(request: Request):
+    from apps.tenants.services import get_effective_tenant
+
+    return get_effective_tenant(request)
+
+
 class PublicConfigView(views.APIView):
     """GET storefront-safe settings as a flat ``{key: value}`` map."""
 
@@ -32,9 +38,10 @@ class PublicConfigView(views.APIView):
 
     @extend_schema(responses={200: dict}, tags=["storeconfig"])
     def get(self, request: Request) -> Response:
-        values = selectors.get_all_settings()
+        tenant = _current_tenant(request)
+        values = selectors.get_all_settings(tenant)
         public = {k: v for k, v in values.items() if k in PUBLIC_KEYS}
-        return Response({"settings": public})
+        return Response({"settings": public, "tenant": getattr(tenant, "slug", None)})
 
 
 def _spec_dict(spec, values: dict) -> dict:
@@ -56,34 +63,44 @@ def _spec_dict(spec, values: dict) -> dict:
     return item
 
 
-def _spec_payload() -> list[dict]:
-    values = selectors.get_all_settings()
+def _spec_payload(tenant=None) -> list[dict]:
+    values = selectors.get_all_settings(tenant)
     return [_spec_dict(spec, values) for spec in SETTINGS.values()]
 
 
 class AdminSettingsView(views.APIView):
-    """List every setting spec, or bulk-update values (role: admin)."""
+    """List every setting spec, or bulk-update values for a store."""
 
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrSellerRole]
 
     @extend_schema(responses={200: SettingSpecSerializer(many=True)}, tags=["storeconfig-admin"])
     def get(self, request: Request) -> Response:
-        return Response({"settings": _spec_payload()})
+        from apps.tenants.services import resolve_write_tenant
+
+        tenant = resolve_write_tenant(request)
+        return Response(
+            {"settings": _spec_payload(tenant), "tenant": getattr(tenant, "slug", None)}
+        )
 
     @extend_schema(
         request=BulkSettingsWriteSerializer, responses={200: dict}, tags=["storeconfig-admin"]
     )
     def patch(self, request: Request) -> Response:
+        from apps.tenants.services import resolve_write_tenant
+
+        tenant = resolve_write_tenant(request)
         serializer = BulkSettingsWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        services.set_many(serializer.validated_data["values"], actor=request.user)
-        return Response({"settings": _spec_payload()})
+        services.set_many(serializer.validated_data["values"], actor=request.user, tenant=tenant)
+        return Response(
+            {"settings": _spec_payload(tenant), "tenant": getattr(tenant, "slug", None)}
+        )
 
 
 class AdminSettingDetailView(views.APIView):
-    """Read/update/reset a single setting by key (role: admin)."""
+    """Read/update/reset a single setting by key."""
 
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrSellerRole]
 
     @extend_schema(
         request=SettingWriteSerializer,
@@ -91,23 +108,29 @@ class AdminSettingDetailView(views.APIView):
         tags=["storeconfig-admin"],
     )
     def put(self, request: Request, key: str) -> Response:
+        from apps.tenants.services import resolve_write_tenant
+
         if key not in SETTINGS:
             return Response(status=status.HTTP_404_NOT_FOUND)
+        tenant = resolve_write_tenant(request)
         serializer = SettingWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Spec validation (type coercion + validators) happens in the service and
-        # surfaces as a 400 via the unified exception handler on bad input.
-        services.set_setting(key, serializer.validated_data["value"], actor=request.user)
-        return Response(_single_payload(key))
+        services.set_setting(
+            key, serializer.validated_data["value"], actor=request.user, tenant=tenant
+        )
+        return Response(_single_payload(key, tenant))
 
     @extend_schema(responses={204: None}, tags=["storeconfig-admin"])
     def delete(self, request: Request, key: str) -> Response:
+        from apps.tenants.services import resolve_write_tenant
+
         if key not in SETTINGS:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        services.reset_setting(key, actor=request.user)
+        tenant = resolve_write_tenant(request)
+        services.reset_setting(key, actor=request.user, tenant=tenant)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-def _single_payload(key: str) -> dict:
+def _single_payload(key: str, tenant=None) -> dict:
     spec = SETTINGS[key]
-    return _spec_dict(spec, {key: selectors.get_setting(key)})
+    return _spec_dict(spec, {key: selectors.get_setting(key, tenant=tenant)})
