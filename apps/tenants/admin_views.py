@@ -1,4 +1,9 @@
-"""Platform-admin tenant management + per-tenant member/key management."""
+"""Platform-admin tenant management + per-tenant member/key management.
+
+Memberships are readable by the members themselves (sellers see their own
+rows); inviting a member is open to platform admins and to the store's
+owner/manager.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 
 from . import services
-from .models import Tenant, TenantApiKey, TenantMembership
+from .models import MembershipRole, Tenant, TenantApiKey, TenantMembership
 from .permissions import IsPlatformAdmin
 from .serializers import (
     TenantApiKeyCreateSerializer,
@@ -19,6 +24,9 @@ from .serializers import (
     TenantMembershipSerializer,
     TenantSerializer,
 )
+
+# Membership roles allowed to manage a store's members (besides platform admins).
+_MEMBER_MANAGERS = (MembershipRole.OWNER, MembershipRole.MANAGER)
 
 
 class TenantAdminViewSet(viewsets.ModelViewSet):
@@ -30,13 +38,26 @@ class TenantAdminViewSet(viewsets.ModelViewSet):
     search_fields = ("name", "slug", "erp_business_id", "domain")
 
     @extend_schema(summary="Add a member to this store")
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsPlatformAdmin])
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def members(self, request, slug: str | None = None) -> Response:
         tenant = self.get_object()
+        user = request.user
+        if getattr(user, "role", "") != "admin":
+            role = tenant.memberships.filter(user=user).values_list("role", flat=True).first()
+            if role not in _MEMBER_MANAGERS:
+                return Response(
+                    {"detail": "Only the store owner or a manager can manage members."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         email = str(request.data.get("email", "")).strip()
         role = str(request.data.get("role", "staff")).strip() or "staff"
         if not email:
             return Response({"email": ["Required."]}, status=status.HTTP_400_BAD_REQUEST)
+        if role not in MembershipRole.values:
+            return Response(
+                {"role": ["Must be one of: owner, manager, staff."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             membership = services.add_member(tenant=tenant, email=email, role=role)
         except Exception:
@@ -58,9 +79,23 @@ class TenantAdminViewSet(viewsets.ModelViewSet):
 
 
 class TenantMembershipAdminViewSet(viewsets.ReadOnlyModelViewSet):
+    """Store members. Sellers read their own memberships; admins read all."""
+
     queryset = TenantMembership.objects.select_related("tenant", "user").all()
     serializer_class = TenantMembershipSerializer
-    permission_classes = [IsAuthenticated, IsAdminRole]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):  # type: ignore[override]
+        if getattr(self, "swagger_fake_view", False):
+            return TenantMembership.objects.none()
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "role", "") != "admin":
+            qs = qs.filter(user=user)
+        tenant_slug = self.request.query_params.get("tenant")
+        if tenant_slug:
+            qs = qs.filter(tenant__slug=tenant_slug)
+        return qs
 
 
 class TenantApiKeyAdminViewSet(viewsets.ModelViewSet):

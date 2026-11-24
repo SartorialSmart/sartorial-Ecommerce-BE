@@ -33,11 +33,12 @@ class TenantSerializer(serializers.ModelSerializer):
 
 class TenantMembershipSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
+    user_name = serializers.CharField(source="user.full_name", read_only=True)
 
     class Meta:
         model = TenantMembership
-        fields = ("id", "tenant", "user", "user_email", "role", "created_at")
-        read_only_fields = ("id", "tenant", "user", "user_email", "created_at")
+        fields = ("id", "tenant", "user", "user_email", "user_name", "role", "created_at")
+        read_only_fields = ("id", "tenant", "user", "user_email", "user_name", "created_at")
 
 
 class TenantApiKeyCreateSerializer(serializers.Serializer):

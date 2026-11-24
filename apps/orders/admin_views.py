@@ -1,6 +1,7 @@
-"""Admin order management (role: admin). Status overrides + refund.
+"""Admin order management (platform admins + store sellers). Status overrides + refund.
 
-Expanded with full audit logging in Phase 8.
+Expanded with full audit logging in Phase 8. Sellers are restricted to their
+own stores' orders by :class:`TenantScopedAdminMixin`.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAdminRole
+from apps.accounts.permissions import IsAdminOrSellerRole
 from apps.common.audit import record_audit
 from apps.common.models import AuditLog
 from apps.tenants.admin_mixins import TenantScopedAdminMixin
@@ -54,7 +55,7 @@ class OrderInquiryAdminViewSet(
 ):
     """Read-only 'chat to order' leads for the admin to follow up on."""
 
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrSellerRole]
     queryset = OrderInquiry.objects.all()
     serializer_class = OrderInquirySerializer
     filterset_fields = ["channel", "context"]
@@ -67,7 +68,7 @@ class OrderAdminViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    permission_classes = [IsAdminRole]
+    permission_classes = [IsAdminOrSellerRole]
     queryset = Order.objects.all().prefetch_related(
         "lines__variant__product__images",
         "lines__variant__variant_options__option_value__option_type",
