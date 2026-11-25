@@ -23,10 +23,12 @@ class TenantLookupView(generics.GenericAPIView):
 
     @extend_schema(summary="Resolve a store by slug or domain", tags=["tenants"])
     def get(self, request) -> Response:
-        slug = request.query_params.get("slug") or getattr(request.tenant, "slug", None)
-        tenant = getattr(request, "tenant", None)
-        if tenant is None and slug:
+        slug = request.query_params.get("slug")
+        tenant = None
+        if slug:
             tenant = Tenant.objects.filter(slug=slug, status=TenantStatus.ACTIVE).first()
+        else:
+            tenant = getattr(request, "tenant", None)
         if tenant is None:
             return Response({"detail": "Store not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(TenantPublicSerializer(tenant).data)

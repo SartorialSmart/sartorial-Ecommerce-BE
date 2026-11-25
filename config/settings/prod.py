@@ -98,7 +98,11 @@ if CORS_ALLOWED_ORIGINS == ["http://localhost:3000"]:
         "https://ecommerce.sartorialsmart.com",
     ]
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://[a-z0-9-]+\.ecommerce\.sartorialsmart\.com$",
+]
 CSRF_TRUSTED_ORIGINS += [origin for origin in CORS_ALLOWED_ORIGINS if origin.startswith("https://")]
+CSRF_TRUSTED_ORIGINS.append("https://*.ecommerce.sartorialsmart.com")
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
 # --- Security hardening ------------------------------------------------------
