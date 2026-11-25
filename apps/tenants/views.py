@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from rest_framework import generics, serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -13,7 +13,7 @@ from apps.storeconfig import services as config_services
 
 from . import services as tenant_services
 from .models import Tenant, TenantStatus
-from .serializers import TenantPublicSerializer, TenantSerializer
+from .serializers import TenantPublicSerializer, TenantSerializer, validate_store_slug
 
 
 class TenantLookupView(generics.GenericAPIView):
@@ -68,11 +68,16 @@ class StoreSetupView(generics.GenericAPIView):
 
         if membership is not None:
             tenant = membership.tenant
+            slug = tenant.slug
             if tenant.name != name:
                 tenant.name = name
                 tenant.save(update_fields=["name", "updated_at"])
         else:
-            slug = str(request.data.get("slug", "")).strip().lower() or slugify(name) or "store"
+            raw_slug = str(request.data.get("slug", "") or "").strip().lower() or slugify(name)
+            try:
+                slug = validate_store_slug(raw_slug or "my-store")
+            except serializers.ValidationError as exc:
+                return Response({"slug": exc.detail}, status=status.HTTP_400_BAD_REQUEST)
             if Tenant.objects.filter(slug=slug).exists():
                 base = slug
                 suffix = 2
@@ -85,10 +90,13 @@ class StoreSetupView(generics.GenericAPIView):
                 user.role = Role.SELLER
                 user.save(update_fields=["role", "updated_at"])
 
-        values: dict = {"store.name": name, "store.setup_complete": True}
+        values: dict = {
+            "store.name": name,
+            "store.setup_complete": True,
+            "store.domain": slug,
+        }
         for key, data_key in (
             ("store.tagline", "tagline"),
-            ("store.domain", "slug"),
             ("store.plan", "plan"),
             ("store.city", "city"),
             ("store.currency", "currency"),

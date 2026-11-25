@@ -79,6 +79,28 @@ def test_setup_is_idempotent_for_existing_store(client: APIClient) -> None:
     assert selectors.get_setting("store.name", tenant=tenant) == "Renamed Store"
 
 
+@pytest.mark.parametrize("slug", ["mail", "api", "billing", "support", "contact", "mail-2"])
+@pytest.mark.django_db
+def test_setup_rejects_reserved_slugs(client: APIClient, slug: str) -> None:
+    user = UserFactory(role=Role.CUSTOMER, password="Pass12345!")
+    client.force_authenticate(user)
+    resp = client.post(SETUP_URL, {"name": "My Store", "slug": slug}, format="json")
+    assert resp.status_code == 400
+    assert "slug" in resp.data
+    assert not Tenant.objects.filter(slug=slug).exists()
+    user.refresh_from_db()
+    assert user.role == Role.CUSTOMER
+
+
+@pytest.mark.django_db
+def test_setup_rejects_reserved_slug_derived_from_name(client: APIClient) -> None:
+    user = UserFactory(role=Role.CUSTOMER, password="Pass12345!")
+    client.force_authenticate(user)
+    resp = client.post(SETUP_URL, {"name": "Support"}, format="json")
+    assert resp.status_code == 400
+    assert "slug" in resp.data
+
+
 @pytest.mark.django_db
 def test_setup_generates_unique_slug_on_collision(client: APIClient) -> None:
     user_a = UserFactory(role=Role.CUSTOMER, password="Pass12345!")
