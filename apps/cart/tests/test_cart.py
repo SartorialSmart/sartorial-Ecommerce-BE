@@ -74,6 +74,46 @@ def test_totals_with_percentage_coupon(currencies: None) -> None:
 
 
 @pytest.mark.django_db
+def test_totals_with_percentage_vat(currencies: None) -> None:
+    config_services.set_setting("tax.vat_enabled", True)
+    config_services.set_setting("tax.vat_type", "percentage")
+    config_services.set_setting("tax.vat_percent", "10")
+    cart = _guest_cart()
+    services.add_item(cart, variant_id=str(make_variant("10.00").id), quantity=2)
+    totals = selectors.compute_cart_totals(cart, currency="USD")
+    assert totals["vat"]["amount"] == "2.00"
+    assert totals["total"]["amount"] == "22.00"
+
+
+@pytest.mark.django_db
+def test_totals_with_flat_vat(currencies: None) -> None:
+    config_services.set_setting("tax.vat_enabled", True)
+    config_services.set_setting("tax.vat_type", "flat")
+    config_services.set_setting("tax.vat_flat_amount", "3")
+    cart = _guest_cart()
+    services.add_item(cart, variant_id=str(make_variant("10.00").id), quantity=2)
+    totals = selectors.compute_cart_totals(cart, currency="USD")
+    assert totals["vat"]["amount"] == "6.00"
+    assert totals["total"]["amount"] == "26.00"
+
+
+@pytest.mark.django_db
+def test_erp_vat_zero_overrides_store_vat(currencies: None) -> None:
+    config_services.set_setting("tax.vat_enabled", True)
+    config_services.set_setting("tax.vat_type", "percentage")
+    config_services.set_setting("tax.vat_percent", "10")
+    variant = make_variant("100.00")
+    variant.product.erp_product_id = "erp-vat-zero"
+    variant.product.vat_rate_percent = Decimal("0")
+    variant.product.save()
+    cart = _guest_cart()
+    services.add_item(cart, variant_id=str(variant.id), quantity=2)
+    totals = selectors.compute_cart_totals(cart, currency="USD")
+    assert totals["vat"]["amount"] == "0.00"
+    assert totals["total"]["amount"] == "200.00"
+
+
+@pytest.mark.django_db
 def test_validate_cart_flags_insufficient_stock(currencies: None) -> None:
     cart = _guest_cart()
     v = make_variant("10.00", stock=1)

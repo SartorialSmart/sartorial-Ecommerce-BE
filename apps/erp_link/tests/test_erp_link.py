@@ -172,6 +172,18 @@ def test_publish_creates_product_and_variants(client, erp_store) -> None:
 
 
 @pytest.mark.django_db
+def test_publish_applies_erp_discount_and_vat(client, erp_store) -> None:
+    _, raw_key = erp_store
+    payload = _publish_payload(discount="15", vat_percent="7.5")
+    resp = client.post("/api/v1/erp/catalog/sync/", payload, format="json", **_auth(raw_key))
+    assert resp.status_code == 201
+    product = Product.objects.get(erp_product_id="prod-erp-1")
+    assert product.discount_percent == Decimal("15.00")
+    assert product.vat_rate_percent == Decimal("7.50")
+    assert product.vat_flat_amount is None
+
+
+@pytest.mark.django_db
 def test_publish_is_idempotent_and_updates_in_place(client, erp_store) -> None:
     store, raw_key = erp_store
     first = client.post(

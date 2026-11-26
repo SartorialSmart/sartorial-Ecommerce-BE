@@ -125,6 +125,8 @@ class ProductAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
             "is_active",
             "is_flash_sale",
             "discount_percent",
+            "vat_rate_percent",
+            "vat_flat_amount",
             "features",
             "primary_image",
             "variant_count",
@@ -134,6 +136,8 @@ class ProductAdminSerializer(_SellerScopedWrite, serializers.ModelSerializer):
         )
         read_only_fields = (
             "short_id",
+            "vat_rate_percent",
+            "vat_flat_amount",
             "primary_image",
             "variant_count",
             "price_from",

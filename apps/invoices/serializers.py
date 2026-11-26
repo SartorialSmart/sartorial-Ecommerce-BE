@@ -31,6 +31,7 @@ class InvoiceSerializer(serializers.ModelSerializer[Invoice]):
             "currency",
             "subtotal",
             "discount",
+            "vat",
             "total",
             "issue_date",
             "due_date",

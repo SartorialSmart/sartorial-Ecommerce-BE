@@ -168,6 +168,7 @@ def build_invoice_pdf(invoice: Invoice) -> bytes:
         [
             ["Subtotal", _money(invoice.subtotal, invoice.currency)],
             ["Discount", _money(invoice.discount, invoice.currency)],
+            ["VAT", _money(invoice.vat, invoice.currency)],
             ["Total due", _money(invoice.total, invoice.currency)],
         ],
         colWidths=[420, 80],
@@ -245,6 +246,7 @@ def create_invoice(
         currency=order.currency,
         subtotal=order.subtotal_charged,
         discount=order.discount_charged,
+        vat=order.vat_charged,
         total=order.total_charged,
         due_date=due_date,
         notes=notes.strip(),

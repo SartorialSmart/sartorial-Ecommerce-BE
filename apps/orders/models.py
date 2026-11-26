@@ -74,10 +74,12 @@ class Order(TenantScopedModel, BaseModel):
     # Money — base currency.
     subtotal_base = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_base = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_base = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_base = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     # Money — charged currency (using the locked rate).
     subtotal_charged = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_charged = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat_charged = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_charged = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     # Shipping destination (set by the owner so a payer can't redirect goods).

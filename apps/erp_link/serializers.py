@@ -44,7 +44,45 @@ class ErpProductSyncSerializer(serializers.Serializer):
     category_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
     brand_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
     is_featured = serializers.BooleanField(required=False, default=False)
+    discount_percent = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        required=False,
+        allow_null=True,
+    )
+    vat_rate_percent = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        required=False,
+        allow_null=True,
+    )
+    vat_flat_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        allow_null=True,
+    )
     variants = ErpVariantSerializer(many=True)
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        payload = dict(data)
+        aliases = {
+            "discount": "discount_percent",
+            "vat_percent": "vat_rate_percent",
+            "tax_rate": "vat_rate_percent",
+            "tax_rate_percent": "vat_rate_percent",
+            "vat_amount": "vat_flat_amount",
+            "tax_amount": "vat_flat_amount",
+        }
+        for alias, canonical in aliases.items():
+            if canonical not in payload and alias in payload:
+                payload[canonical] = payload[alias]
+        return super().to_internal_value(payload)
 
     def validate_variants(self, variants: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not variants:

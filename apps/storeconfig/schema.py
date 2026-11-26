@@ -108,6 +108,17 @@ def _payment_provider(value: Any) -> None:
         raise ValidationError("Must be one of: mock, paystack, flutterwave.")
 
 
+def _vat_type(value: Any) -> None:
+    if str(value) not in {"percentage", "flat"}:
+        raise ValidationError("Must be one of: percentage, flat.")
+
+
+def _percentage_decimal(value: Any) -> None:
+    number = Decimal(str(value))
+    if number < 0 or number > 100:
+        raise ValidationError("Must be between 0 and 100.")
+
+
 def _hex_color(value: Any) -> None:
     import re
 
@@ -294,6 +305,31 @@ SETTINGS: dict[str, SettingSpec] = {
             DECIMAL,
             "0.0",
             "Fallback tax rate when no zone matches.",
+            _non_negative_decimal,
+        ),
+        SettingSpec("tax.vat_enabled", "tax", BOOLEAN, False, "Whether VAT is charged on orders."),
+        SettingSpec(
+            "tax.vat_type",
+            "tax",
+            STRING,
+            "percentage",
+            "VAT charge type: percentage of the line total or a flat fee per item.",
+            _vat_type,
+        ),
+        SettingSpec(
+            "tax.vat_percent",
+            "tax",
+            DECIMAL,
+            "0.0",
+            "VAT percentage applied when tax.vat_type is 'percentage'.",
+            _percentage_decimal,
+        ),
+        SettingSpec(
+            "tax.vat_flat_amount",
+            "tax",
+            DECIMAL,
+            "0.0",
+            "VAT flat fee per item when tax.vat_type is 'flat'.",
             _non_negative_decimal,
         ),
         SettingSpec(
@@ -532,6 +568,10 @@ PUBLIC_KEYS: frozenset[str] = frozenset(
         "currency.base",
         "currency.enabled",
         "tax.inclusive_pricing",
+        "tax.vat_enabled",
+        "tax.vat_type",
+        "tax.vat_percent",
+        "tax.vat_flat_amount",
         "features.pay_for_a_friend",
         "features.guest_payers",
         "features.guest_checkout",

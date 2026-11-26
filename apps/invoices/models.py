@@ -37,6 +37,7 @@ class Invoice(TenantScopedModel, BaseModel):
     currency = models.CharField(max_length=3, default="USD")
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    vat = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     issue_date = models.DateField(default=timezone.localdate)
     due_date = models.DateField(null=True, blank=True)

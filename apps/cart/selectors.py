@@ -12,6 +12,7 @@ from apps.catalog.models import Product
 from apps.currency import selectors as currency_selectors
 from apps.currency import services as currency_services
 from apps.inventory.selectors import variant_availability
+from apps.pricing import services as pricing_services
 from apps.promotions import services as promo_services
 
 from .models import Cart, CartLine
@@ -87,12 +88,20 @@ def compute_cart_totals(cart: Cart, *, currency: str | None = None) -> dict[str,
 
     lines_out: list[dict[str, Any]] = []
     subtotal = Decimal("0")
+    vat_total = Decimal("0")
     category_subtotals: dict[int, Decimal] = {}
+    store_rule = pricing_services.store_vat_rule(cart.tenant)
 
     for line in cart_lines(cart):
         unit = line.variant.unit_price_for(line.quantity)
         line_base = unit * line.quantity
+        line_vat = pricing_services.vat_amount(
+            pricing_services.product_vat_rule(line.variant.product, store_rule),
+            line_base,
+            line.quantity,
+        )
         subtotal += line_base
+        vat_total += line_vat
         cat_id = line.variant.product.category_id
         if cat_id is not None:
             category_subtotals[cat_id] = category_subtotals.get(cat_id, Decimal("0")) + line_base
@@ -107,6 +116,7 @@ def compute_cart_totals(cart: Cart, *, currency: str | None = None) -> dict[str,
                 "quantity": line.quantity,
                 "unit_price": _money(unit, display),
                 "line_total": _money(line_base, display),
+                "vat": _money(line_vat, display),
                 "price_changed": unit != line.added_unit_price,
                 "in_stock": variant_availability(line.variant) >= line.quantity,
             }
@@ -119,7 +129,7 @@ def compute_cart_totals(cart: Cart, *, currency: str | None = None) -> dict[str,
         user=cart.owner,
     )
     discount_total = discounts["total"]
-    total = max(subtotal - discount_total, Decimal("0"))
+    total = max(subtotal - discount_total, Decimal("0")) + vat_total
 
     return {
         "currency": display,
@@ -133,6 +143,7 @@ def compute_cart_totals(cart: Cart, *, currency: str | None = None) -> dict[str,
             ],
             "total": _money(discount_total, display),
         },
+        "vat": _money(vat_total, display),
         "total": _money(total, display),
         "item_count": sum(line.quantity for line in cart.lines.all()),
     }

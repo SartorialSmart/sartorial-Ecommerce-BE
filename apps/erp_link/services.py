@@ -120,6 +120,9 @@ def upsert_product(*, tenant: Tenant, payload: dict[str, Any]) -> dict[str, Any]
         product.category = category
         product.brand = brand
         product.is_featured = bool(payload.get("is_featured", False))
+        product.discount_percent = payload.get("discount_percent") or Decimal("0")
+        product.vat_rate_percent = payload.get("vat_rate_percent")
+        product.vat_flat_amount = payload.get("vat_flat_amount")
         product.save()
 
         seen_variant_ids: list[str] = []
@@ -299,7 +302,9 @@ def _order_payload(order: Order) -> dict[str, Any]:
         "base_currency": order.base_currency,
         "subtotal_base": str(order.subtotal_base),
         "discount_base": str(order.discount_base),
+        "vat_base": str(order.vat_base),
         "total_base": str(order.total_base),
+        "vat_charged": str(order.vat_charged),
         "total_charged": str(order.total_charged),
         "contact_email": order.contact_email,
         "contact_name": order.contact_name,

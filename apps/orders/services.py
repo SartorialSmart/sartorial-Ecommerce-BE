@@ -20,6 +20,7 @@ from apps.common.exceptions import DomainError
 from apps.currency import selectors as currency_selectors
 from apps.currency import services as currency_services
 from apps.inventory import services as inventory_services
+from apps.pricing import services as pricing_services
 from apps.promotions import services as promo_services
 from apps.promotions.models import Coupon
 
@@ -143,10 +144,17 @@ def checkout(
     locked_rate = currency_services.effective_rate(base, display)
 
     subtotal_base = Decimal("0")
+    vat_base = Decimal("0")
     category_subtotals: dict[int, Decimal] = {}
+    store_rule = pricing_services.store_vat_rule(cart.tenant)
     for line in lines:
         line_base = line.variant.unit_price_for(line.quantity) * line.quantity
         subtotal_base += line_base
+        vat_base += pricing_services.vat_amount(
+            pricing_services.product_vat_rule(line.variant.product, store_rule),
+            line_base,
+            line.quantity,
+        )
         cat_id = line.variant.product.category_id
         if cat_id is not None:
             category_subtotals[cat_id] = category_subtotals.get(cat_id, Decimal("0")) + line_base
@@ -158,7 +166,7 @@ def checkout(
         user=cart.owner,
     )
     discount_base = discounts["total"]
-    total_base = max(subtotal_base - discount_base, Decimal("0"))
+    total_base = max(subtotal_base - discount_base, Decimal("0")) + vat_base
 
     def charged(amount: Decimal) -> Decimal:
         return currency_services.convert(amount, base, display, rate=locked_rate)
@@ -214,9 +222,11 @@ def checkout(
         fx_rate_locked=locked_rate,
         subtotal_base=subtotal_base,
         discount_base=discount_base,
+        vat_base=vat_base,
         total_base=total_base,
         subtotal_charged=charged(subtotal_base),
         discount_charged=charged(discount_base),
+        vat_charged=charged(vat_base),
         total_charged=charged(total_base),
         ship_name=ship.get("name", ""),
         ship_line1=ship.get("line1", ""),
