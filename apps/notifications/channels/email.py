@@ -11,8 +11,9 @@ A backend's ``send`` returns a provider response dict on success and raises
 
 from __future__ import annotations
 
+import base64
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import requests
@@ -24,6 +25,13 @@ class EmailDeliveryError(Exception):
 
 
 @dataclass
+class EmailAttachment:
+    filename: str
+    content: bytes
+    mimetype: str = "application/octet-stream"
+
+
+@dataclass
 class EmailMessage:
     to: str
     subject: str
@@ -31,6 +39,7 @@ class EmailMessage:
     text: str
     from_address: str = ""
     from_name: str = ""
+    attachments: list[EmailAttachment] = field(default_factory=list)
 
 
 class BaseEmailBackend(ABC):
@@ -85,6 +94,8 @@ class DjangoEmailBackend(BaseEmailBackend):
             )
             if message.html:
                 email.attach_alternative(message.html, "text/html")
+            for attachment in message.attachments:
+                email.attach(attachment.filename, attachment.content, attachment.mimetype)
             email.send(fail_silently=False)
         except Exception as exc:  # noqa: BLE001
             raise EmailDeliveryError(str(exc)) from exc
@@ -107,6 +118,15 @@ class ZeptoMailBackend(BaseEmailBackend):
             "htmlbody": message.html or message.text,
             "textbody": message.text,
         }
+        if message.attachments:
+            payload["attachments"] = [
+                {
+                    "name": attachment.filename,
+                    "content_type": attachment.mimetype,
+                    "content": base64.b64encode(attachment.content).decode("ascii"),
+                }
+                for attachment in message.attachments
+            ]
         try:
             resp = requests.post(
                 settings.ZEPTOMAIL_API_URL,

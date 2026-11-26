@@ -38,6 +38,8 @@ api_v1_admin_patterns = [
     path("currency/", include("apps.currency.admin_urls")),
     path("promotions/", include("apps.promotions.admin_urls")),
     path("", include("apps.orders.admin_urls")),
+    path("", include("apps.invoices.urls")),
+    path("", include("apps.erp_link.admin_urls")),
     path("payments/", include("apps.payments.admin_urls")),
     path("suppliers/", include("apps.suppliers.admin_urls")),
     path("accounts/", include("apps.accounts.admin_urls")),

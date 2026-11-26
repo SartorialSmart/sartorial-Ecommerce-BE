@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, serializers, status
+from rest_framework import generics, serializers, status, views
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.accounts.models import Role
@@ -101,10 +103,18 @@ class StoreSetupView(generics.GenericAPIView):
             ("store.city", "city"),
             ("store.currency", "currency"),
             ("store.category", "category"),
+            ("store.logo_url", "logo_url"),
+            ("store.logo_public_id", "logo_public_id"),
         ):
             raw = str(request.data.get(data_key, "") or "").strip()
             if raw:
                 values[key] = raw
+        logo_url = values.get("store.logo_url", "")
+        if logo_url:
+            values["store.logo"] = logo_url
+            if str(logo_url).startswith("https://"):
+                tenant.logo_url = str(logo_url)
+                tenant.save(update_fields=["logo_url", "updated_at"])
         template = str(request.data.get("template", "") or "").strip()
         if template:
             values["storefront.template"] = template
@@ -123,3 +133,14 @@ class StoreSetupView(generics.GenericAPIView):
             TenantSerializer(tenant).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class LogoUploadSignatureView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses={200: dict}, tags=["tenants"])
+    def post(self, request: Request) -> Response:
+        from apps.catalog.services import upload_signature
+
+        folder = f"{settings.CLOUDINARY_UPLOAD_FOLDER}/logos"
+        return Response(upload_signature({"folder": folder}))

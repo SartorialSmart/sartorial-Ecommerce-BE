@@ -20,6 +20,7 @@ dependencies = [
     "requests>=2.31",
     "dotenv>=0.9.9",
     "gunicorn>=22.0",
+    "reportlab>=5.1.2",
 ]
 
 # Development tooling lives in a uv dependency group, installed by default with
@@ -78,6 +79,10 @@ exclude = ["migrations"]
 [[tool.mypy.overrides]]
 module = ["*.migrations.*"]
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["cloudinary.*", "reportlab.*"]
+ignore_missing_imports = true
 
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"
