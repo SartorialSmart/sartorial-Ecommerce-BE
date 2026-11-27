@@ -8,7 +8,6 @@ the public list endpoint to render pricing cards and checkout plan selection.
 from __future__ import annotations
 
 from django.db import models
-from django.utils.translation import gettext_lazy as _
 
 from apps.common.models import BaseModel
 
@@ -41,9 +40,7 @@ class PricingTier(BaseModel):
         blank=True,
         help_text="List of feature strings rendered on the pricing card.",
     )
-    cta = models.CharField(
-        max_length=40, blank=True, help_text="Call-to-action button text."
-    )
+    cta = models.CharField(max_length=40, blank=True, help_text="Call-to-action button text.")
     tagline = models.CharField(max_length=160, blank=True)
 
     is_active = models.BooleanField(default=True)

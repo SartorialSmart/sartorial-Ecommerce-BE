@@ -19,9 +19,7 @@ from .models import PricingTier
 from .serializers import PricingTierAdminSerializer, PricingTierSerializer
 
 
-class PublicPricingTierViewSet(
-    mixins.ListModelMixin, viewsets.GenericViewSet
-):
+class PublicPricingTierViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """List active pricing tiers for the storefront."""
 
     permission_classes = []
@@ -54,12 +52,16 @@ class AdminPricingTierViewSet(
             action=AuditLog.Action.CREATE,
             target_type="pricing.PricingTier",
             target_id=str(tier.id),
-            changes={k: {"before": None, "after": getattr(tier, k)} for k in serializer.validated_data},
+            changes={
+                k: {"before": None, "after": getattr(tier, k)} for k in serializer.validated_data
+            },
             metadata={"name": tier.name},
         )
 
     def perform_update(self, serializer):
-        before = {f.name: getattr(serializer.instance, f.name) for f in serializer.instance._meta.fields}
+        before = {
+            f.name: getattr(serializer.instance, f.name) for f in serializer.instance._meta.fields
+        }
         tier = serializer.save()
         after = {f.name: getattr(tier, f.name) for f in tier._meta.fields}
         record_audit(
